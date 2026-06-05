@@ -1,0 +1,111 @@
+:root {
+  --orange: #E8440A;
+  --orange-h: #D03A08;
+  --orange-l: #FF6B35;
+  --orange-xl: #FFF0EB;
+  --orange-xxl: #FFF8F5;
+  --bg: #FFFFFF;
+  --bg-soft: #FAFAF9;
+  --bg-strong: #4a4a4a;
+  --surface: #FFFFFF;
+  --surface2: #FFF5F1;
+  --border: #F0EBE8;
+  --border2: #E5DDD9;
+  --text: #1A1410;
+  --text2: #4A3F3A;
+  --muted: #7A6E6A;
+  --muted2: #A89E9A;
+  --green: #16A34A;
+  --green-l: #DCFCE7;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--orange) 0%, var(--orange-l) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-up {
+  animation: fadeUp 0.6s ease both;
+}
+
+.fade-up-1 {
+  animation-delay: 0.1s;
+}
+
+.fade-up-2 {
+  animation-delay: 0.2s;
+}
+
+.fade-up-3 {
+  animation-delay: 0.3s;
+}
+
+.fade-up-4 {
+  animation-delay: 0.4s;
+}
+
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.blink {
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
