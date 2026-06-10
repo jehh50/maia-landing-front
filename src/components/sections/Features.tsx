@@ -24,7 +24,7 @@ const features: Feature[] = [
   {
     Icon: HubIcon,
     t: 'Integraciones nativas',
-    d: '+50 integraciones listas: Salesforce, HubSpot, Slack, Notion, WhatsApp y más.',
+    d: '+100 integraciones listas: Salesforce, HubSpot, Slack, Google, Shopify, WooCommerce y más.',
     accent: '#7C3AED',
   },
   {
@@ -35,13 +35,13 @@ const features: Feature[] = [
   },
   {
     Icon: InsightsIcon,
-    t: 'Analytics en vivo',
+    t: 'Métricas en vivo',
     d: 'Dashboards con KPIs de cada agente, conversación y resultado de negocio en tiempo real.',
     accent: '#16A34A',
   },
   {
     Icon: GroupsIcon,
-    t: 'Hand-off a humanos',
+    t: 'Deriva a humanos',
     d: 'Cuando algo se sale del guion, el agente escala a tu equipo con todo el contexto.',
     accent: '#D97706',
   },
@@ -58,7 +58,7 @@ export default function Features() {
     <Box component="section" id="features" sx={{ py: { xs: 7, md: 10 }, background: 'linear-gradient(180deg, var(--orange-xxl) 0%, var(--bg-soft) 30%, var(--bg-soft) 70%, var(--orange-xxl) 100%)' }}>
       <Container>
         <Box className="reveal" sx={{ textAlign: 'center', maxWidth: 680, mx: 'auto', mb: 6 }}>
-          <Typography variant="overline" color="primary" fontWeight={600}>Funciones</Typography>
+          <Typography variant="overline" color="primary" fontWeight={600}>Características</Typography>
           <Typography variant="h2" sx={{ fontSize: { xs: '1.7rem', md: '2.4rem' }, mt: 1, mb: 2 }}>
             Todo lo que necesitas. Nada de lo que sobra.
           </Typography>

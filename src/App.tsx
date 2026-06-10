@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/sections/Hero';
-import Trust from './components/sections/Trust';
+//import Trust from './components/sections/Trust';
 import Pain from './components/sections/Pain';
 import Solution from './components/sections/Solution';
 import Features from './components/sections/Features';
 import Integrations from './components/sections/Integrations';
 //import ROI from './components/sections/ROI';
 import Pricing from './components/sections/Pricing';
-import Testimonials from './components/sections/Testimonials';
+//import Testimonials from './components/sections/Testimonials';
 //import Blog from './components/sections/Blog';
 import FAQ from './components/sections/FAQ';
 import CTAFinal from './components/sections/CTAFinal';
@@ -34,14 +34,14 @@ export default function App() {
     <>
       <Navbar onOpenContact={() => openContact('demo')} />
       <Hero onOpenContact={() => openContact('demo')} />
-      <Trust />
+      {/*<Trust />*/}
       <Pain />
       <Solution />
       <Features />
       <Integrations />
       {/*<ROI isAnnual={isAnnual} />*/}
       <Pricing isAnnual={isAnnual} onToggle={() => setIsAnnual(v => !v)} onOpenContact={() => openContact('contacto')} />
-      <Testimonials />
+      {/*<Testimonials />*/}
       {/*<Blog />*/}
       <FAQ />
       <CTAFinal />

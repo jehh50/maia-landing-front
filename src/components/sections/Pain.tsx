@@ -39,9 +39,9 @@ export default function Pain() {
     <Box component="section" sx={{ py: { xs: 7, md: 10 }, background: 'linear-gradient(180deg, var(--orange-xxl) 0%, var(--bg-soft) 30%, var(--bg-soft) 70%, var(--orange-xxl) 100%)' }}>
       <Container>
         <Box className="reveal" sx={{ textAlign: 'center', maxWidth: 680, mx: 'auto', mb: 6 }}>
-          <Typography variant="overline" color="primary" fontWeight={600}>El problema</Typography>
+          <Typography variant="overline" color="primary" fontWeight={600}>El desafío</Typography>
           <Typography variant="h2" sx={{ fontSize: { xs: '1.7rem', md: '2.4rem' }, mt: 1, mb: 2 }}>
-            Tu equipo está atrapado en tareas que la IA debería hacer.
+            Tu equipo está atrapado en tareas repetitivas que la IA podría hacer
           </Typography>
           <Typography color="text.secondary">Si reconoces alguno de estos problemas, estás dejando dinero sobre la mesa.</Typography>
         </Box>

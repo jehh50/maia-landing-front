@@ -8,21 +8,21 @@ interface Plan {
 
 const plans: Plan[] = [
   {
-    name: 'Starter', monthly: 199, annual: 159, period: '/ mes · 2,500 interacciones',
+    name: 'Starter', monthly: 199, annual: 159, period: '1000 creditos',
     saving: 'Ahorras $480/año',
-    features: ['1 agente activo', '2,500 interacciones/mes', '100 MB knowledge base', 'WhatsApp + Web chat', 'Soporte por email'],
+    features: ['1 agente activo', '1000 creditos/mes', '100 MB knowledge base', 'WhatsApp + Web chat', 'Soporte por email'],
     dim: ['Workflows avanzados'],
   },
   {
-    name: 'Team', monthly: 499, annual: 399, period: '/ mes · 3,000 interacciones',
-    saving: 'Ahorras $1,200/año', featured: true,
-    features: ['5 agentes activos', '3,000 interacciones/mes', '1 GB knowledge base', 'Todos los canales', '3 workflows avanzados', 'Dashboard de KPIs', 'Centro de monitoreo'],
+    name: 'Team', monthly: 599, annual: 479, period: '2,500 creditos',
+    saving: 'Ahorras $1,440/año', featured: true,
+    features: ['5 agentes activos', '2,500 creditos/mes', '1 GB knowledge base', 'Todos los canales', '3 workflows avanzados', 'Dashboard de KPIs', 'Centro de monitoreo'],
     dim: [],
   },
   {
-    name: 'Growth', monthly: 999, annual: 799, period: '/ mes · 10,000 interacciones',
+    name: 'Growth', monthly: 999, annual: 799, period: '3,500 creditos',
     saving: 'Ahorras $2,400/año',
-    features: ['20 agentes activos', '10,000 interacciones/mes', '5 GB knowledge base', 'Workflows ilimitados', 'Hand-off a humanos', 'Centro de monitoreo', 'API REST + webhooks'],
+    features: ['20 agentes activos', '3,500 creditos/mes', '5 GB knowledge base', 'Workflows ilimitados', 'Hand-off a humanos', 'Centro de monitoreo', 'API REST + webhooks'],
     dim: [],
   },
   {

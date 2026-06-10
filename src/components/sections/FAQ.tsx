@@ -2,6 +2,9 @@ import { Box, Container, Typography, Accordion, AccordionSummary, AccordionDetai
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const faqs = [
+  { q: '¿Qué es un crédito?', a: 'Es una conversación en una ventana de 24 horas.' },
+  { q: '¿Cuánto cuesta una llamada de mi agente?', a: 'Las llamadas se descuentan de tus créditos, siendo 1 minuto equivalente a 1.5 créditos.' },
+  { q: '¿Qué pasa si me quedo sin créditos?', a: 'Puedes activar cualquiera de los paquetes adicionales o aumentar tu plan.' },
   { q: '¿Cuánto tiempo toma ponerlo en producción?', a: 'Desde 30 minutos para un agente básico hasta 2 semanas para uno con integraciones complejas. Te acompañamos en el onboarding.' },
   { q: '¿Necesito saber programar?', a: 'No. MaIA está pensado para equipos de negocio. Configuras agentes desde una UI visual y todas las integraciones son nativas.' },
   { q: '¿Mis datos están seguros?', a: 'Cifrado en tránsito y reposo, SOC 2 compliant, hosting en regiones seleccionables. Tus datos nunca entrenan modelos públicos.' },

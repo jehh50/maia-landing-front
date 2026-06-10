@@ -14,20 +14,20 @@ interface Step {
 const steps: Step[] = [
   {
     n: '01',
-    t: 'Conecta tus datos',
-    d: 'Sube manuales, FAQs, catálogos. Conecta CRM, ERP y canales de mensajería en minutos.',
-    Icon: CloudUploadIcon,
-  },
-  {
-    n: '02',
     t: 'Diseña tu agente',
     d: 'Define su personalidad, objetivos y límites. Sin código. Sin prompts complicados.',
     Icon: AutoAwesomeIcon,
   },
   {
+    n: '02',
+    t: 'Conecta tus datos',
+    d: 'Sube manuales, FAQs, catálogos. Conecta tus herramientas como CRM, ERP, E-Commerce y más.',
+    Icon: CloudUploadIcon,
+  },
+  {
     n: '03',
     t: 'Lanza y mide',
-    d: 'Activa en WhatsApp, web o Slack. Mide KPIs en tiempo real desde un panel unificado.',
+    d: 'Activa tus canales de preferencia como WhatsApp, WebChat o Instagram. KPIs en tiempo real desde un panel unificado.',
     Icon: RocketLaunchIcon,
   },
 ];
@@ -37,7 +37,7 @@ export default function Solution() {
     <Box component="section" id="solution" sx={{ py: { xs: 7, md: 10 }, background: 'linear-gradient(180deg, var(--bg-soft) 0%, #FFFFFF 30%, #FFFFFF 70%, var(--bg-soft) 100%)' }}>
       <Container>
         <Box className="reveal" sx={{ textAlign: 'center', maxWidth: 680, mx: 'auto', mb: 6 }}>
-          <Typography variant="overline" color="primary" fontWeight={600}>La solución</Typography>
+          <Typography variant="overline" color="primary" fontWeight={600}>Cómo funciona</Typography>
           <Typography variant="h2" sx={{ fontSize: { xs: '1.7rem', md: '2.4rem' }, mt: 1, mb: 2 }}>
             De idea a agente productivo en 3 pasos
           </Typography>

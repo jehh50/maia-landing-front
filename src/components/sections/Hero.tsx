@@ -66,10 +66,10 @@ export default function Hero({ onOpenContact }: HeroProps) {
     };
   }, []);
 
-  const teams = useCounter(500, '+', 0, active);
-  const ints = useCounter(4.2, 'M', 1, active);
+  const teams = useCounter(100, '+', 0, active);
+  const ints = useCounter(1, 'M', 1, active);
   const red = useCounter(68, '%', 0, active);
-  const roi = useCounter(3.1, '×', 1, active);
+  const roi = useCounter(2.5, '×', 1, active);
 
   return (
     <Box component="section" id="hero" sx={{ position: 'relative', pt: { xs: 13, md: 16 }, pb: { xs: 7, md: 10 } }}>
@@ -85,8 +85,8 @@ export default function Hero({ onOpenContact }: HeroProps) {
         <Box className="fade-up" sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
           <Chip
             label={<>
-              <Box component="span" className="blink" sx={{ display: 'inline-block', width: 8, height: 8, bgcolor: 'success.main', borderRadius: '50%', mr: 1, verticalAlign: 'middle' }} />
-              Nuevo: agentes con memoria persistente
+              <Box component="span" className="" sx={{ fontSize: { xs: 16, md: 18 } }} />
+              Multiplica tu capacidad, no tus tareas.
             </>}
             sx={{ bgcolor: 'background.paper', border: '1px solid var(--border2)', fontWeight: 500 }}
           />
@@ -94,13 +94,13 @@ export default function Hero({ onOpenContact }: HeroProps) {
 
         <Typography variant="h1" className="fade-up fade-up-1" align="center" sx={{ fontSize: { xs: '2.2rem', md: '3.8rem' }, mb: 2 }}>
           Crea agentes de IA que<br />
-          <Box component="span" className="gradient-text">trabajan por tu equipo</Box><br />
+          <Box component="span" className="gradient-text">trabajan para tu equipo</Box><br />
           24/7, sin código
         </Typography>
 
         <Typography className="fade-up fade-up-2" align="center" color="text.secondary" sx={{ maxWidth: 680, mx: 'auto', mb: 4, fontSize: { xs: 16, md: 18 } }}>
-          Automatiza ventas, soporte y operaciones internas en 30 minutos.
-          Sin ingenieros. Con todas tus integraciones ya conectadas.
+          Automatiza ventas, soporte y operaciones internas en tan solo minutos.
+          Sin ingenieros. Con todas tus herramientas ya conectadas.
         </Typography>
 
         <Stack className="fade-up fade-up-3" direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center" sx={{ mb: 6 }}>
@@ -115,7 +115,7 @@ export default function Hero({ onOpenContact }: HeroProps) {
             target="_blank"
             rel="noopener"
           >
-            Ver demo en vivo
+            Ver demo
           </Button>
         </Stack>
 
@@ -124,10 +124,10 @@ export default function Hero({ onOpenContact }: HeroProps) {
           gap: 3, maxWidth: 800, mx: 'auto', mb: 6, textAlign: 'center',
         }}>
           {[
-            { v: teams, l: 'Equipos LATAM' },
+            { v: teams, l: 'Empresas' },
             { v: ints, l: 'Interacciones / mes' },
             { v: red, l: 'Reducción tiempo' },
-            { v: roi, l: 'ROI promedio' },
+            { v: roi, l: 'ROI aproximado' },
           ].map(s => (
             <Box key={s.l}>
               <Typography variant="h3" sx={{ fontSize: { xs: 24, md: 32 }, fontWeight: 800, color: 'primary.main' }}>{s.v}</Typography>

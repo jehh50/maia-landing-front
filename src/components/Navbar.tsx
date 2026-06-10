@@ -4,11 +4,10 @@ import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 
 const navLinks = [
-  { href: '#solution', label: 'Cómo funciona' },
-  { href: '#features', label: 'Funciones' },
-  { href: '#integrations', label: 'Integraciones' },
-  { href: '#testimonials', label: 'Casos de éxito' },
-  { href: '#faq', label: 'FAQ' },
+  { href: '#pain', label: 'Cómo funciona' },
+  { href: '#features', label: 'Características' },
+  { href: '#pricing', label: 'Precios' },
+  { href: '#testimonials', label: 'Recursos' },
 ];
 
 export interface NavbarProps {
@@ -66,7 +65,7 @@ export default function Navbar({ onOpenContact }: NavbarProps) {
 
             {!mobile ? (
               <Box sx={{ display: 'flex', gap: 1.5 }}>
-                <Button href="#pricing" variant="outlined" size="small">Ver precios</Button>
+                <Button href="https://app.maiabuilder.ai/" variant="outlined" size="small">Iniciar Sesión</Button>
                 <Button onClick={onOpenContact} variant="contained" size="small">Agenda un demo</Button>
               </Box>
             ) : (
