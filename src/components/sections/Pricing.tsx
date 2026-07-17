@@ -8,20 +8,20 @@ interface Plan {
 
 const plans: Plan[] = [
   {
-    name: 'Starter', monthly: 199, annual: 159, period: '1000 creditos',
-    saving: 'Ahorras $480/año',
+    name: 'Starter', monthly: 19, annual: 17, period: '1000 creditos',
+    saving: 'Ahorras $24/año',
     features: ['1 agente activo', '1000 creditos/mes', '100 MB knowledge base', 'WhatsApp + Web chat', 'Soporte por email'],
     dim: ['Workflows avanzados'],
   },
   {
-    name: 'Team', monthly: 599, annual: 479, period: '2,500 creditos',
-    saving: 'Ahorras $1,440/año', featured: true,
+    name: 'Team', monthly: 199, annual: 179, period: '2,500 creditos',
+    saving: 'Ahorras $240/año', featured: true,
     features: ['5 agentes activos', '2,500 creditos/mes', '1 GB knowledge base', 'Todos los canales', '3 workflows avanzados', 'Dashboard de KPIs', 'Centro de monitoreo'],
     dim: [],
   },
   {
-    name: 'Growth', monthly: 999, annual: 799, period: '3,500 creditos',
-    saving: 'Ahorras $2,400/año',
+    name: 'Growth', monthly: 599, annual: 540, period: '3,500 creditos',
+    saving: 'Ahorras $708/año',
     features: ['20 agentes activos', '3,500 creditos/mes', '5 GB knowledge base', 'Workflows ilimitados', 'Hand-off a humanos', 'Centro de monitoreo', 'API REST + webhooks'],
     dim: [],
   },
@@ -50,7 +50,7 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
         <Box className="reveal" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 5 }}>
           <Typography color="text.secondary">Mensual</Typography>
           <FormControlLabel control={<Switch checked={isAnnual} onChange={onToggle} />} label="Anual" />
-          <Chip size="small" label="Ahorra 20%" color="success" sx={{ bgcolor: 'var(--green-l)', color: 'var(--green)', fontWeight: 600 }} />
+          <Chip size="small" label="Ahorra 10%" color="success" sx={{ bgcolor: 'var(--green-l)', color: 'var(--green)', fontWeight: 600 }} />
         </Box>
 
         <Box className="reveal" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3 }}>
