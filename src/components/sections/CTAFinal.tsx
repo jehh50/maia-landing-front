@@ -19,7 +19,7 @@ export default function CTAFinal() {
           <Button
             variant="contained"
             size="large"
-            href="https://app.maiabuilder.ai/"
+            href="https://app.maiabuilder.ai/login"
             target="_blank"
             sx={{ bgcolor: '#fff', color: 'primary.main', '&:hover': { bgcolor: '#fff' } }}
           >

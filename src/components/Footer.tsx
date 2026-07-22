@@ -13,15 +13,14 @@ const cols = [
     title: 'Empresa', items: [
       /*{ l: 'Sobre nosotros', h: '#' },*/
       { l: 'Blog', h: '/blog' },
-      { l: 'Casos de éxito', h: '#' },
-      { l: 'Términos y condiciones', h: '#' },
-      { l: 'Política de Privacidad', h: '#' },
+      { l: 'Términos y condiciones', h: '/terminos' },
+      { l: 'Política de Privacidad', h: '/privacidad' },
     ]
   },
   {
     title: 'Soporte', items: [
-      { l: 'maia@maiabuilder.ai', h: 'mailto:maia@maiabuilder.ai' },
-      { l: 'Contacto', h: '#cta-final' },
+      { l: 'soporte@maiabuilder.ai', h: 'mailto:soporte@maiabuilder.ai' },
+      { l: 'Contacto: +56965400115', h: 'https://wa.me/+56965400115' },
     ]
   },
 ];
@@ -58,7 +57,7 @@ export default function Footer() {
             {[
 
               { l: <Box component="img" src="/logo-linkedin.svg" alt="MaIA" sx={{ height: 28 }} />, h: 'https://linkedin.com/company/ximple-tech' },
-              { l: <Box component="img" src="/logo-instagram.svg" alt="MaIA" sx={{ height: 28 }} />, h: 'https://instagram.com/maia_by_ximple' },
+              { l: <Box component="img" src="/logo-instagram.svg" alt="MaIA" sx={{ height: 28 }} />, h: 'https://instagram.com/maia.agent' },
             ].map(s => (
               <Link key={s.h} href={s.h} target="_blank" rel="noopener" underline="none" sx={{
                 width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',

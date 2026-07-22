@@ -13,6 +13,8 @@ import ArticlesList from './admin/articles/ArticlesList';
 import ArticleEdit from './admin/articles/ArticleEdit';
 import BlogIndex from './pages/BlogIndex';
 import BlogArticle from './pages/BlogArticle';
+import LegalPage from './pages/LegalPage';
+import { legalDocs } from './pages/legal/legalDocs';
 import './styles/globals.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -24,6 +26,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/" element={<App />} />
           <Route path="/blog"        element={<BlogIndex />} />
           <Route path="/blog/:slug"  element={<BlogArticle />} />
+          <Route path="/privacidad"  element={<LegalPage doc={legalDocs.privacidad} />} />
+          <Route path="/terminos"    element={<LegalPage doc={legalDocs.terminos} />} />
           <Route path="/admin/login" element={<Login />} />
           <Route
             path="/admin"

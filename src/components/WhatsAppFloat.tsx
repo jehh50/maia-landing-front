@@ -11,10 +11,10 @@ export default function WhatsAppFloat() {
       aria-label="Chat por WhatsApp"
       sx={{
         position: 'fixed', bottom: 24, right: 24, zIndex: 100,
-        width: 75, height: 75, borderRadius: '50%',
+        width: 50, height: 50, borderRadius: '50%',
         bgcolor: '#E8440A', color: '#fff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 16px rgba(37,211,102,0.4)',
+        boxShadow: '0 4px 16px #E8440A',
         textDecoration: 'none', transition: 'transform 0.2s',
         '&:hover': { transform: 'scale(1.08)' },
       }}

@@ -8,6 +8,7 @@ import Features from './components/sections/Features';
 import Integrations from './components/sections/Integrations';
 //import ROI from './components/sections/ROI';
 import Pricing from './components/sections/Pricing';
+import Addons from './components/sections/Addons';
 //import Testimonials from './components/sections/Testimonials';
 //import Blog from './components/sections/Blog';
 import FAQ from './components/sections/FAQ';
@@ -41,6 +42,7 @@ export default function App() {
       <Integrations />
       {/*<ROI isAnnual={isAnnual} />*/}
       <Pricing isAnnual={isAnnual} onToggle={() => setIsAnnual(v => !v)} onOpenContact={() => openContact('contacto')} />
+      <Addons />
       {/*<Testimonials />*/}
       {/*<Blog />*/}
       <FAQ />

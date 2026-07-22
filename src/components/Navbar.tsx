@@ -65,8 +65,8 @@ export default function Navbar({ onOpenContact }: NavbarProps) {
 
             {!mobile ? (
               <Box sx={{ display: 'flex', gap: 1.5 }}>
-                <Button href="https://app.maiabuilder.ai/" variant="outlined" size="small">Registrate</Button>
-                <Button onClick={onOpenContact} variant="contained" size="small">Agenda un demo</Button>
+                <Button href="https://app.maiabuilder.ai/" variant="contained" size="small">Ingresar</Button>
+                <Button onClick={onOpenContact} variant="outlined" size="small">Agenda un demo</Button>
               </Box>
             ) : (
               <IconButton onClick={() => setOpen(true)} aria-label="Menú">

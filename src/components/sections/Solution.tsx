@@ -27,7 +27,7 @@ const steps: Step[] = [
   {
     n: '03',
     t: 'Lanza y mide',
-    d: 'Activa tus canales de preferencia como WhatsApp, WebChat o Instagram. KPIs en tiempo real desde un panel unificado.',
+    d: 'Activa tus canales de preferencia como WhatsApp, WebChat o Slack. KPIs en tiempo real desde un panel unificado.',
     Icon: RocketLaunchIcon,
   },
 ];
@@ -39,7 +39,10 @@ export default function Solution() {
         <Box className="reveal" sx={{ textAlign: 'center', maxWidth: 680, mx: 'auto', mb: 6 }}>
           <Typography variant="overline" color="primary" fontWeight={600}>Cómo funciona</Typography>
           <Typography variant="h2" sx={{ fontSize: { xs: '1.7rem', md: '2.4rem' }, mt: 1, mb: 2 }}>
-            De idea a agente productivo en 3 pasos
+            De idea a agente productivo
+          </Typography>
+          <Typography variant="h2" sx={{ fontSize: { xs: '1.7rem', md: '2.4rem' }, mt: 1, mb: 2 }}>
+            en 3 pasos
           </Typography>
           <Typography color="text.secondary">
             MaIA combina datos privados, modelos de IA y tus integraciones en una sola plataforma.
@@ -52,7 +55,7 @@ export default function Solution() {
                 p: 4,
                 height: '100%',
                 borderRadius: 3,
-                background: '#fff',
+                background: '#FFF9F6',
                 border: '1px solid var(--border)',
                 textAlign: 'center',
                 position: 'relative',
@@ -63,7 +66,6 @@ export default function Solution() {
                   position: 'absolute',
                   top: 0, left: 0, right: 0,
                   height: 3,
-                  background: 'linear-gradient(90deg, var(--orange) 0%, var(--orange-l) 100%)',
                   opacity: 0,
                   transition: 'opacity 0.25s ease',
                 },

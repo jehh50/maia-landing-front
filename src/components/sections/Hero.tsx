@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Button, Container, Typography, Chip, Stack } from '@mui/material';
-import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import * as THREE from 'three';
 
 interface HeroProps { onOpenContact: () => void }
@@ -107,7 +106,7 @@ export default function Hero({ onOpenContact }: HeroProps) {
           <Button variant="contained" size="large" onClick={onOpenContact}>
             Agenda un demo →
           </Button>
-          <Button
+          {/* <Button
             variant="outlined"
             size="large"
             startIcon={<PlayCircleOutlineIcon />}
@@ -116,7 +115,7 @@ export default function Hero({ onOpenContact }: HeroProps) {
             rel="noopener"
           >
             Ver demo
-          </Button>
+          </Button> */}
         </Stack>
 
         <Box ref={statsRef} className="fade-up fade-up-4" sx={{
@@ -138,51 +137,17 @@ export default function Hero({ onOpenContact }: HeroProps) {
 
         <Box className="reveal" sx={{
           maxWidth: 980, mx: 'auto',
-          background: '#FAFAF9', borderRadius: 4, overflow: 'hidden',
+          borderRadius: 1, overflow: 'hidden',
           boxShadow: '0 12px 40px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04)',
           border: '1px solid var(--border)',
+          lineHeight: 0,
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.5, borderBottom: '1px solid var(--border)', background: '#FAFAF9' }}>
-            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#FF5F56' }} />
-            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#FEBC2E' }} />
-            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#27C840' }} />
-            <Box sx={{ ml: 2, fontSize: 12, color: 'text.secondary' }}>app.maiabuilder.ai / mis-agentes</Box>
-          </Box>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '220px 1fr' }, minHeight: 360 }}>
-            <Box sx={{ display: { xs: 'none', md: 'block' }, p: 2, borderRight: '1px solid var(--border)' }}>
-              <Box component="img" src="/logo-maia.svg" alt="MaIA" sx={{ height: 22, mb: 2 }} />
-              {['Mis agentes', 'Conversaciones', 'Conocimiento', 'Integraciones', 'Configuración'].map((it, i) => (
-                <Box key={it} sx={{
-                  px: 1.5, py: 1, borderRadius: 1.5, fontSize: 13, color: i === 0 ? 'primary.main' : 'text.secondary',
-                  background: i === 0 ? 'var(--orange-xl)' : 'transparent', fontWeight: i === 0 ? 600 : 400,
-                }}>{it}</Box>
-              ))}
-            </Box>
-            <Box sx={{ p: 3, background: '#FFFFFF' }}>
-              <Typography variant="h6" fontWeight={700}>Mis agentes IA</Typography>
-              <Typography variant="caption" color="text.secondary">Administra todos tus agentes en un solo lugar.</Typography>
-              <Stack spacing={1.5} sx={{ mt: 2 }}>
-                {[
-                  { i: 'C', n: 'Carlos · Soporte L1', r: 'Resuelve 78% de tickets sin escalar', a: true },
-                  { i: 'V', n: 'Valeria · SDR', r: 'Califica leads y agenda demos' },
-                  { i: 'M', n: 'Mateo · Onboarding', r: 'Guía a nuevos clientes paso a paso' },
-                ].map(a => (
-                  <Box key={a.n} sx={{
-                    display: 'flex', alignItems: 'center', gap: 2, p: 1.5, borderRadius: 2,
-                    background: '#fff', border: `1px solid ${a.a ? 'var(--orange)' : 'var(--border)'}`,
-                    backgroundColor: a.a ? 'var(--orange-xxl)' : '#fff',
-                  }}>
-                    <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: 'primary.main', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{a.i}</Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Box sx={{ fontSize: 13, fontWeight: 600 }}>{a.n}</Box>
-                      <Box sx={{ fontSize: 12, color: 'text.secondary' }}>{a.r}</Box>
-                    </Box>
-                    <Chip size="small" label="Activo" sx={{ bgcolor: 'var(--green-l)', color: 'var(--green)', fontWeight: 600 }} />
-                  </Box>
-                ))}
-              </Stack>
-            </Box>
-          </Box>
+          <Box
+            component="img"
+            src="/hero.png"
+            alt="Plataforma MaIA: administra todos tus agentes de IA en un solo lugar"
+            sx={{ display: 'block', width: '100%', height: 'auto' }}
+          />
         </Box>
       </Container>
     </Box>

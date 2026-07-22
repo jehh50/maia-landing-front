@@ -1,34 +1,35 @@
 import { Box, Container, Typography, Switch, FormControlLabel, Chip } from '@mui/material';
+import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
 
 interface Plan {
   name: string; monthly: number; annual: number;
-  saving: string; features: string[]; dim: string[]; featured?: boolean;
-  period: string;
+  saving: string; features: string[]; dim: string[]; featured?: boolean; trial?: string;
 }
 
 const plans: Plan[] = [
   {
-    name: 'Starter', monthly: 19, annual: 17, period: '1000 creditos',
+    name: 'Starter', monthly: 19, annual: 17,
     saving: 'Ahorras $24/año',
-    features: ['1 agente activo', '1000 creditos/mes', '100 MB knowledge base', 'WhatsApp + Web chat', 'Soporte por email'],
+    trial: '14 días de prueba gratis',
+    features: ['1 agente activo', '100 créditos/mes', '50 MB knowledge base', 'WhatsApp + Web chat', 'Soporte por email'],
     dim: ['Workflows avanzados'],
   },
   {
-    name: 'Team', monthly: 199, annual: 179, period: '2,500 creditos',
+    name: 'Team', monthly: 199, annual: 179,
     saving: 'Ahorras $240/año', featured: true,
-    features: ['5 agentes activos', '2,500 creditos/mes', '1 GB knowledge base', 'Todos los canales', '3 workflows avanzados', 'Dashboard de KPIs', 'Centro de monitoreo'],
+    features: ['3 agentes activos', '1,000 créditos/mes', '500 MB knowledge base', 'Todos los canales', '3 workflows avanzados', 'Dashboard de KPIs', 'Centro de actividades', 'Soporte Prioritario (ticket)'],
     dim: [],
   },
   {
-    name: 'Growth', monthly: 599, annual: 540, period: '3,500 creditos',
+    name: 'Growth', monthly: 599, annual: 540,
     saving: 'Ahorras $708/año',
-    features: ['20 agentes activos', '3,500 creditos/mes', '5 GB knowledge base', 'Workflows ilimitados', 'Hand-off a humanos', 'Centro de monitoreo', 'API REST + webhooks'],
+    features: ['5 agentes activos', '2,500 créditos/mes', '1 GB knowledge base', 'Todos los canales', 'Workflows ilimitados', 'Llamadas en tiempo real', 'Dashboard de KPIs', 'Centro de monitoreo', 'Soporte dedicado'],
     dim: [],
   },
   {
-    name: 'Enterprise', monthly: 0, annual: 0, period: 'A medida',
+    name: 'Enterprise', monthly: 0, annual: 0,
     saving: '',
-    features: ['Agentes ilimitados', 'Volumen custom', 'SSO / SAML / RBAC', 'On-prem disponible', 'SLA 99.9%', 'CSM dedicado'],
+    features: ['Agentes ilimitados', 'Créditos a convenir', 'Integraciones avanzadas', 'Autenticación avanzada', 'Soporte Premier'],
     dim: [],
   },
 ];
@@ -56,7 +57,7 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
         <Box className="reveal" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3 }}>
           {plans.map(p => (
             <Box key={p.name} sx={{
-              position: 'relative', p: 3.5, borderRadius: 3, background: '#fff',
+              position: 'relative', p: 3.5, borderRadius: 1, background: '#fff',
               border: p.featured ? '2px solid var(--orange)' : '1px solid var(--border)',
               boxShadow: p.featured ? '0 12px 40px rgba(232,68,10,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
             }}>
@@ -74,11 +75,20 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
                     <Box component="sup" sx={{ fontSize: 18 }}>$</Box>
                     {(isAnnual ? p.annual : p.monthly).toLocaleString()}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">{p.period}</Typography>
                   {isAnnual && <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 0.5, fontWeight: 600 }}>{p.saving}</Typography>}
                 </>
               ) : (
                 <Typography sx={{ fontSize: 24, fontWeight: 800, mt: 1, color: 'text.primary' }}>Custom</Typography>
+              )}
+              {p.trial && (
+                <Box sx={{
+                  mt: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75,
+                  py: 1, px: 1.5, borderRadius: 0.5, fontWeight: 700, fontSize: 12, letterSpacing: 0.2,
+                  color: 'var(--green)', bgcolor: 'var(--green-l)', border: '1px solid rgba(22,163,74,0.25)',
+                }}>
+                  <CardGiftcardIcon sx={{ fontSize: 18 }} />
+                  {p.trial}
+                </Box>
               )}
               <Box sx={{ borderTop: '1px solid var(--border)', my: 2 }} />
               <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
