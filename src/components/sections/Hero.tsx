@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Button, Container, Typography, Chip, Stack } from '@mui/material';
+import { Box, Button, Container, Typography, Chip, Stack, IconButton } from '@mui/material';
+import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import * as THREE from 'three';
 
 interface HeroProps { onOpenContact: () => void }
+
+const HERO_SLIDES = [
+  { src: '/hero.png', alt: 'Plataforma MaIA: administra todos tus agentes de IA en un solo lugar' },
+  { src: '/hero-2.png', alt: 'Plataforma MaIA: conversaciones y conocimiento de tus agentes' },
+  { src: '/hero-3.png', alt: 'Plataforma MaIA: integraciones y automatizaciones sin código' },
+];
 
 function useCounter(target: number, suffix = '', dec = 0, active = true) {
   const [val, setVal] = useState('0' + suffix);
@@ -70,11 +78,19 @@ export default function Hero({ onOpenContact }: HeroProps) {
   const red = useCounter(68, '%', 0, active);
   const roi = useCounter(2.5, '×', 1, active);
 
+  const [slide, setSlide] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const go = (n: number) => setSlide((n + HERO_SLIDES.length) % HERO_SLIDES.length);
+
+  useEffect(() => {
+    if (paused) return;
+    const id = setInterval(() => setSlide(s => (s + 1) % HERO_SLIDES.length), 5000);
+    return () => clearInterval(id);
+  }, [paused]);
+
   return (
     <Box component="section" id="hero" sx={{ position: 'relative', pt: { xs: 13, md: 16 }, pb: { xs: 7, md: 10 } }}>
-      {/* Vanta NET canvas background */}
       <Box ref={vantaRef} sx={{ position: 'absolute', inset: 0, zIndex: 0 }} />
-      {/* Gradient overlay: fades to white at the bottom */}
       <Box sx={{
         position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none',
         background: 'linear-gradient(180deg, transparent 40%, #FFFFFF 100%)',
@@ -135,19 +151,88 @@ export default function Hero({ onOpenContact }: HeroProps) {
           ))}
         </Box>
 
-        <Box className="reveal" sx={{
-          maxWidth: 980, mx: 'auto',
-          borderRadius: 1, overflow: 'hidden',
-          boxShadow: '0 12px 40px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04)',
-          border: '1px solid var(--border)',
-          lineHeight: 0,
-        }}>
-          <Box
-            component="img"
-            src="/hero.png"
-            alt="Plataforma MaIA: administra todos tus agentes de IA en un solo lugar"
-            sx={{ display: 'block', width: '100%', height: 'auto' }}
-          />
+        <Box
+          className="reveal"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          sx={{
+            position: 'relative',
+            maxWidth: 980, mx: 'auto',
+            borderRadius: 1, overflow: 'hidden',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04)',
+            border: '1px solid var(--border)',
+            aspectRatio: '1381 / 677',
+            background: '#FAFAF9',
+            lineHeight: 0,
+            '&:hover .hero-arrow': { opacity: 1 },
+          }}
+        >
+          {HERO_SLIDES.map((s, i) => (
+            <Box
+              key={s.src}
+              component="img"
+              src={s.src}
+              alt={s.alt}
+              aria-hidden={i !== slide}
+              sx={{
+                position: 'absolute', inset: 0,
+                width: '100%', height: '100%',
+                objectFit: 'cover', objectPosition: 'center top',
+                opacity: i === slide ? 1 : 0,
+                transition: 'opacity 0.6s ease',
+                pointerEvents: 'none',
+              }}
+            />
+          ))}
+
+          {/* Flechas */}
+          <IconButton
+            className="hero-arrow"
+            aria-label="Imagen anterior"
+            onClick={() => go(slide - 1)}
+            sx={{
+              position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)',
+              bgcolor: 'rgba(255,255,255,0.85)', color: 'var(--text)',
+              opacity: { xs: 1, md: 0 }, transition: 'opacity 0.2s ease',
+              '&:hover': { bgcolor: '#fff' },
+            }}
+          >
+            <KeyboardArrowLeftIcon />
+          </IconButton>
+          <IconButton
+            className="hero-arrow"
+            aria-label="Imagen siguiente"
+            onClick={() => go(slide + 1)}
+            sx={{
+              position: 'absolute', top: '50%', right: 8, transform: 'translateY(-50%)',
+              bgcolor: 'rgba(255,255,255,0.85)', color: 'var(--text)',
+              opacity: { xs: 1, md: 0 }, transition: 'opacity 0.2s ease',
+              '&:hover': { bgcolor: '#fff' },
+            }}
+          >
+            <KeyboardArrowRightIcon />
+          </IconButton>
+
+          {/* Dots */}
+          <Box sx={{
+            position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', gap: 1, zIndex: 2,
+          }}>
+            {HERO_SLIDES.map((s, i) => (
+              <Box
+                key={s.src}
+                component="button"
+                aria-label={`Ir a la imagen ${i + 1}`}
+                onClick={() => go(i)}
+                sx={{
+                  p: 0, border: 'none', cursor: 'pointer',
+                  width: i === slide ? 22 : 8, height: 8, borderRadius: 100,
+                  background: i === slide ? 'var(--orange)' : 'rgba(0,0,0,0.25)',
+                  transition: 'all 0.25s ease',
+                }}
+              />
+            ))}
+          </Box>
         </Box>
       </Container>
     </Box>

@@ -17,7 +17,7 @@ interface Pain {
 function highlightBrand(text: string) {
   return text.split(/(MaIA)/gi).map((part, i) =>
     /^maia$/i.test(part) ? (
-      <Box key={i} component="span" sx={{ fontWeight: 800, color: 'var(--orange)' }}>
+      <Box key={i} component="span" sx={{ fontWeight: 800, color: 'var(--text2)' }}>
         {part}
       </Box>
     ) : (
@@ -29,7 +29,7 @@ function highlightBrand(text: string) {
 const pains: Pain[] = [
   {
     Icon: GroupRemoveIcon,
-    t: 'El talento humano atrapado',
+    t: 'Talento humano atrapado',
     p: 'Tu equipo pasa horas respondiendo las mismas preguntas básicas, calificando contactos o copiando datos manualmente.',
     s: 'Con MaIA puedes crear agentes con capacidad de razonamiento. No repiten textos como un robot clásico; entienden el contexto y resuelven la consulta de tus clientes de principio a fin.',
   },
@@ -47,7 +47,7 @@ const pains: Pain[] = [
   },
   {
     Icon: SpeakerNotesOffIcon,
-    t: 'Tecnología que solo habla, pero no actúa',
+    t: 'Bots que solo contestan, pero no actúan',
     p: 'Un chat que solo responde preguntas frecuentes no soluciona el fondo. Si no puede realizar acciones reales, tu equipo humano sigue atrapado en el trabajo administrativo.',
     s: 'Tus agentes se conectan directamente con tus sistemas diarios. Pueden agendar citas, registrar pedidos o realizar tareas de forma 100% autónoma.',
   },
@@ -111,12 +111,7 @@ export default function Pain() {
                   >
                     <p.Icon sx={{ fontSize: 26 }} />
                   </Box>
-                  <Typography
-                    variant="overline"
-                    sx={{ display: 'block', color: 'var(--muted)', letterSpacing: 1, lineHeight: 1.4 }}
-                  >
-                    El problema
-                  </Typography>
+
                   <Typography variant="h6" fontWeight={700} sx={{ fontSize: 17, mt: 0.25, mb: 1, minHeight: { xs: 'auto', md: 50 } }}>
                     {p.t}
                   </Typography>

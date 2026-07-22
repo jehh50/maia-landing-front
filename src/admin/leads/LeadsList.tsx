@@ -120,8 +120,9 @@ export default function LeadsList() {
               <TableRow
                 key={r.id}
                 hover
+                selected={selected?.id === r.id}
                 onClick={() => setSelected(r)}
-                sx={{ cursor: 'pointer' }}
+                sx={{ cursor: 'pointer', '&.Mui-selected': { paddingBottom: '6px' } }}
                 data-testid={`lead-row-${r.id}`}
               >
                 <TableCell sx={{ whiteSpace: 'nowrap', color: 'text.secondary', fontSize: 13 }}>

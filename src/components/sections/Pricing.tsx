@@ -58,6 +58,7 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
           {plans.map(p => (
             <Box key={p.name} sx={{
               position: 'relative', p: 3.5, borderRadius: 1, background: '#fff',
+              display: 'flex', flexDirection: 'column', height: '100%',
               border: p.featured ? '2px solid var(--orange)' : '1px solid var(--border)',
               boxShadow: p.featured ? '0 12px 40px rgba(232,68,10,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
             }}>
@@ -99,14 +100,36 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
                   <Box component="li" key={f} sx={{ fontSize: 14, color: 'var(--muted2)', mb: 0.75, textDecoration: 'line-through' }}>{f}</Box>
                 ))}
               </Box>
-              {p.name === 'Enterprise' && (
-                <Box sx={{ mt: 2 }}>
+              <Box sx={{ mt: 'auto', pt: 2.5 }}>
+                {p.name === 'Enterprise' ? (
                   <Box component="button" onClick={onOpenContact} sx={{
                     width: '100%', py: 1.2, border: '1px solid var(--orange)', background: 'transparent',
                     color: 'primary.main', borderRadius: 100, fontWeight: 600, cursor: 'pointer', fontSize: 14,
+                    transition: 'all 0.2s ease', '&:hover': { background: 'var(--orange-xl)' },
                   }}>Hablar con ventas →</Box>
-                </Box>
-              )}
+                ) : (
+                  <Box
+                    component="a"
+                    href={`https://app.maiabuilder.ai/login?plan=${encodeURIComponent(p.name.toLowerCase())}`}
+                    sx={{
+                      display: 'block', width: '100%', py: 1.2, textAlign: 'center', textDecoration: 'none',
+                      borderRadius: 100, fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      ...(p.featured
+                        ? {
+                            border: '1px solid var(--orange)', background: 'var(--orange)', color: '#fff',
+                            '&:hover': { background: 'var(--orange-h)', borderColor: 'var(--orange-h)' },
+                          }
+                        : {
+                            border: '1px solid var(--orange)', background: 'transparent', color: 'var(--orange)',
+                            '&:hover': { background: 'var(--orange-xl)' },
+                          }),
+                    }}
+                  >
+                    Elegir plan →
+                  </Box>
+                )}
+              </Box>
             </Box>
           ))}
         </Box>
