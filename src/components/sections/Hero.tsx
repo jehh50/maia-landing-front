@@ -100,8 +100,8 @@ export default function Hero({ onOpenContact }: HeroProps) {
         <Box className="fade-up" sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
           <Chip
             label={<>
-              <Box component="span" className="" sx={{ fontSize: { xs: 16, md: 18 } }} />
-              Multiplica tu capacidad, no tus tareas.
+              <Box component="p" className="" sx={{ fontSize: { xs: 16, md: 18 } }} />
+              El futuro del trabajo no es automatizar, es delegar a una fuerza laboral digital
             </>}
             sx={{ bgcolor: 'background.paper', border: '1px solid var(--border2)', fontWeight: 500 }}
           />
