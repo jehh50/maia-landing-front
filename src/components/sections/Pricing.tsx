@@ -12,7 +12,7 @@ const plans: Plan[] = [
     saving: 'Ahorras $24/año',
     trial: '14 días de prueba gratis',
     features: ['1 agente activo', '100 créditos/mes', '50 MB knowledge base', 'WhatsApp + Web chat', 'Soporte por email'],
-    dim: ['Workflows avanzados'],
+    dim: [],
   },
   {
     name: 'Team', monthly: 199, annual: 179,
@@ -84,7 +84,7 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
               {p.trial && (
                 <Box sx={{
                   mt: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75,
-                  py: 1, px: 1.5, borderRadius: 0.5, fontWeight: 700, fontSize: 12, letterSpacing: 0.2,
+                  py: 1, px: 1.5, borderRadius: 0.5, fontWeight: 700, fontSize: 2, letterSpacing: 0.2,
                   color: 'var(--green)', bgcolor: 'var(--green-l)', border: '1px solid rgba(22,163,74,0.25)',
                 }}>
                   <CardGiftcardIcon sx={{ fontSize: 18 }} />
@@ -100,7 +100,7 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
                   <Box component="li" key={f} sx={{ fontSize: 14, color: 'var(--muted2)', mb: 0.75, textDecoration: 'line-through' }}>{f}</Box>
                 ))}
               </Box>
-              <Box sx={{ mt: 'auto', pt: 2.5 }}>
+              {/* <Box sx={{ mt: 'auto', pt: 2.5 }}>
                 {p.name === 'Enterprise' ? (
                   <Box component="button" onClick={onOpenContact} sx={{
                     width: '100%', py: 1.2, border: '1px solid var(--orange)', background: 'transparent',
@@ -110,26 +110,26 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
                 ) : (
                   <Box
                     component="a"
-                    href={`https://app.maiabuilder.ai/login?plan=${encodeURIComponent(p.name.toLowerCase())}`}
+                    onClick={onOpenContact}
                     sx={{
                       display: 'block', width: '100%', py: 1.2, textAlign: 'center', textDecoration: 'none',
                       borderRadius: 100, fontWeight: 700, fontSize: 14, cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       ...(p.featured
                         ? {
-                            border: '1px solid var(--orange)', background: 'var(--orange)', color: '#fff',
-                            '&:hover': { background: 'var(--orange-h)', borderColor: 'var(--orange-h)' },
-                          }
+                          border: '1px solid var(--orange)', background: 'var(--orange)', color: '#fff',
+                          '&:hover': { background: 'var(--orange-h)', borderColor: 'var(--orange-h)' },
+                        }
                         : {
-                            border: '1px solid var(--orange)', background: 'transparent', color: 'var(--orange)',
-                            '&:hover': { background: 'var(--orange-xl)' },
-                          }),
+                          border: '1px solid var(--orange)', background: 'transparent', color: 'var(--orange)',
+                          '&:hover': { background: 'var(--orange-xl)' },
+                        }),
                     }}
                   >
-                    Elegir plan →
+                    Hablar con ventas →
                   </Box>
                 )}
-              </Box>
+              </Box> */}
             </Box>
           ))}
         </Box>
@@ -137,7 +137,7 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
         <Typography align="center" sx={{ mt: 5, color: 'text.secondary', fontSize: 14 }}>
           ¿No sabes cuál elegir?{' '}
           <Box component="a" onClick={onOpenContact} sx={{ color: 'primary.main', fontWeight: 600, cursor: 'pointer', textDecoration: 'none' }}>
-            Agenda una demo gratuita de 30 min
+            Contactanos
           </Box>{' '}y te ayudamos.
         </Typography>
       </Container>

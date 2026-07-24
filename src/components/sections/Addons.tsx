@@ -137,8 +137,8 @@ export default function Addons() {
                         }}
                       >
                         <Typography variant="body2" sx={{ color: 'var(--text2)' }}>{pack.label}</Typography>
-                        <Typography variant="caption" sx={{ color: 'var(--muted)' }}>{pack.description}</Typography>
-                        <Typography sx={{ fontWeight: 800, fontSize: 16, color: 'var(--black)', whiteSpace: 'nowrap' }}>
+                        <Typography variant="caption" sx={{ color: 'var(--muted)', fontSize: 1 }}>{pack.description}</Typography>
+                        <Typography sx={{ fontWeight: 800, fontSize: 15, color: 'var(--black)', whiteSpace: 'nowrap' }}>
                           {pack.price}
                         </Typography>
                       </Box>

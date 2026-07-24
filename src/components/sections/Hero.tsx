@@ -157,7 +157,7 @@ export default function Hero({ onOpenContact }: HeroProps) {
           onMouseLeave={() => setPaused(false)}
           sx={{
             position: 'relative',
-            maxWidth: 980, mx: 'auto',
+            maxWidth: 1100, mx: 'auto',
             borderRadius: 1, overflow: 'hidden',
             boxShadow: '0 12px 40px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04)',
             border: '1px solid var(--border)',
@@ -177,7 +177,7 @@ export default function Hero({ onOpenContact }: HeroProps) {
               sx={{
                 position: 'absolute', inset: 0,
                 width: '100%', height: '100%',
-                objectFit: 'cover', objectPosition: 'center top',
+                objectFit: 'contain', objectPosition: 'center top',
                 opacity: i === slide ? 1 : 0,
                 transition: 'opacity 0.6s ease',
                 pointerEvents: 'none',

@@ -29,10 +29,10 @@ const empty: FormState = {
 };
 
 export default function ContactModal({ open, onClose, tipo = 'demo' }: ContactModalProps) {
-  const [form, setForm]       = useState<FormState>(empty);
-  const [errors, setErrors]   = useState<Partial<Record<keyof FormState, string>>>({});
+  const [form, setForm] = useState<FormState>(empty);
+  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [status, setStatus]   = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [status, setStatus] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -81,12 +81,12 @@ export default function ContactModal({ open, onClose, tipo = 'demo' }: ContactMo
     }
     setSubmitting(true);
     const { ok, data } = await postLead({
-      nombre:    form.nombre.trim(),
-      empresa:   form.empresa.trim(),
-      email:     form.email.trim(),
-      telefono:  form.telefono.replace(/\s/g, ''),
+      nombre: form.nombre.trim(),
+      empresa: form.empresa.trim(),
+      email: form.email.trim(),
+      telefono: form.telefono.replace(/\s/g, ''),
       industria: form.industria.trim(),
-      mensaje:   form.mensaje.trim(),
+      mensaje: form.mensaje.trim(),
       tipo,
     });
     setSubmitting(false);
@@ -107,7 +107,7 @@ export default function ContactModal({ open, onClose, tipo = 'demo' }: ContactMo
       maxWidth="sm"
       fullWidth
       aria-labelledby="contact-modal-title"
-      PaperProps={{ sx: { borderRadius: 3 } }}
+      PaperProps={{ sx: { borderRadius: 1 } }}
     >
       <DialogTitle id="contact-modal-title" sx={{ pr: 6, pt: 3.5, pb: 0.5 }}>
         <Typography variant="h5" component="div" fontWeight={700} letterSpacing="-0.02em">

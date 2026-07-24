@@ -1,0 +1,3 @@
+/home/jehh50/Imágenes/Screenshots/hero-2.png
+/home/jehh50/Imágenes/Screenshots/hero-3.png
+/home/jehh50/Imágenes/Screenshots/hero.png
