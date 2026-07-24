@@ -12,6 +12,7 @@ interface Pain {
   t: string; // Title
   p: string; // Pain
   s: string; // Solution
+  accent: string; // Icon color
 }
 
 function highlightBrand(text: string) {
@@ -29,30 +30,35 @@ function highlightBrand(text: string) {
 const pains: Pain[] = [
   {
     Icon: GroupRemoveIcon,
+    accent: '#f55c2b',
     t: 'Talento humano atrapado',
     p: 'Tu equipo pasa horas respondiendo las mismas preguntas básicas, calificando contactos o copiando datos manualmente.',
     s: 'Con MaIA puedes crear agentes con capacidad de razonamiento. No repiten textos como un robot clásico; entienden el contexto y resuelven la consulta de tus clientes de principio a fin.',
   },
   {
     Icon: SavingsIcon,
+    accent: '#7C3AED',
     t: 'Costos de operación elevados',
     p: 'Contratar y entrenar personal de soporte o ventas es lento y costoso. Además, la rotación constante afecta directamente tu productividad.',
     s: 'Tus asistentes virtuales operan de forma impecable las 24 horas, los 365 días del año, sin cansarse. Crece tu capacidad de respuesta de inmediato a una fracción de lo que costaría ampliar tu nómina.',
   },
   {
     Icon: HourglassTopIcon,
+    accent: '#0369A1',
     t: 'Clientes impacientes',
     p: 'Los clientes exigen respuestas inmediatas. Los chats tradicionales con menús de botones rígidos los frustran y los obligan a esperar a que un humano se libere.',
     s: 'Atención inmediata y natural siempre. MaIA entiende textos, mensajes de voz y fotos de tus productos.',
   },
   {
     Icon: SpeakerNotesOffIcon,
+    accent: '#b90f0f',
     t: 'Bots que solo contestan, pero no actúan',
     p: 'Un chat que solo responde preguntas frecuentes no soluciona el fondo. Si no puede realizar acciones reales, tu equipo humano sigue atrapado en el trabajo administrativo.',
     s: 'Tus agentes se conectan directamente con tus sistemas diarios. Pueden agendar citas, registrar pedidos o realizar tareas de forma 100% autónoma.',
   },
   {
     Icon: SettingsSuggestIcon,
+    accent: '#0891B2',
     t: 'La complejidad de implementar IA',
     p: 'Pensar que para tener Inteligencia Artificial necesitas contratar ingenieros costosos, gastar miles de dólares y esperar meses para ver un resultado.',
     s: 'Creación guiada sin código. MaIA actúa como un especialista que te entrevista en lenguaje sencillo, aprende de tu negocio y construye tu asistente ideal listo para trabajar en minutos.',
@@ -90,7 +96,7 @@ export default function Pain() {
                     boxShadow: '0 20px 44px rgba(232,68,10,0.16)',
                   },
                   '&:hover .pain-icon': {
-                    background: 'var(--orange)',
+                    background: p.accent,
                     color: '#fff',
                   },
                 }}
@@ -103,8 +109,8 @@ export default function Pain() {
                       display: 'inline-flex',
                       p: 1.2,
                       borderRadius: 2,
-                      background: 'var(--orange-xl)',
-                      color: 'var(--orange)',
+                      background: `${p.accent}18`,
+                      color: p.accent,
                       mb: 2,
                       transition: 'all 0.25s ease',
                     }}

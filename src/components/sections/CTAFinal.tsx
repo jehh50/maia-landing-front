@@ -5,29 +5,51 @@ export default function CTAFinal() {
     <Box component="section" id="cta-final" sx={{ py: { xs: 7, md: 10 } }}>
       <Container>
         <Box className="reveal" sx={{
-          textAlign: 'center', borderRadius: 4, p: { xs: 5, md: 8 }, color: '#fff',
+          borderRadius: 4, p: { xs: 5, md: 8 }, color: '#fff',
           background: 'linear-gradient(135deg, var(--orange) 0%, var(--orange-h) 100%)',
-          boxShadow: '0 20px 60px rgba(232,68,10,0.30)',
+          boxShadow: '0 20px 60px rgba(255, 255, 255, 0.3)',
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: 'center',
+          gap: { xs: 4, md: 6 },
         }}>
-          <Chip label="Sin riesgos" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 600, mb: 3 }} />
-          <Typography variant="h2" sx={{ fontSize: { xs: '1.8rem', md: '2.6rem' }, color: '#fff', mb: 1.5 }}>
-            Empieza hoy.<br />Tu equipo lo agradecerá.
-          </Typography>
-          <Typography sx={{ color: 'rgba(255,255,255,0.9)', mb: 3 }}>
-            Setup en 30 minutos. Tu primer agente activo desde el día uno.
-          </Typography>
-          <Button
-            variant="contained"
-            size="large"
-            href="https://app.maiabuilder.ai/login"
-            target="_blank"
-            sx={{ bgcolor: '#fff', color: 'primary.main', '&:hover': { bgcolor: '#fff' } }}
-          >
-            Iniciar ahora
-          </Button>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', display: 'block', mt: 2 }}>
-            Al registrarte aceptas nuestros Términos y Privacidad.
-          </Typography>
+          {/* Texto */}
+          <Box sx={{ flex: 1, textAlign: { xs: 'center', md: 'left' } }}>
+            <Chip label="Sin riesgos" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 600, mb: 3 }} />
+            <Typography variant="h2" sx={{ fontSize: { xs: '1.8rem', md: '2.6rem' }, color: '#fff', mb: 1.5 }}>
+              Empieza hoy.<br />Tu equipo lo agradecerá.
+            </Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,0.9)', mb: 3 }}>
+              Setup en 30 minutos. Tu primer agente activo desde el día uno.
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              href="https://app.maiabuilder.ai/login"
+              target="_blank"
+              sx={{ bgcolor: '#fff', color: 'primary.main', '&:hover': { bgcolor: '#fff' } }}
+            >
+              Iniciar ahora
+            </Button>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', display: 'block', mt: 2 }}>
+              Al registrarte aceptas nuestros Términos y Privacidad.
+            </Typography>
+          </Box>
+
+          {/* Imagen */}
+          <Box
+            component="img"
+            src="/maia.png"
+            alt="MaIA"
+            sx={{
+              flexShrink: 0,
+              width: { xs: '80%', sm: 320, md: 340 },
+              maxWidth: '100%',
+              height: 'auto',
+              objectFit: 'fill',
+              borderRadius: 20,
+            }}
+          />
         </Box>
       </Container>
     </Box>
