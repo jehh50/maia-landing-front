@@ -11,7 +11,6 @@ const cols = [
   },
   {
     title: 'Empresa', items: [
-      /*{ l: 'Sobre nosotros', h: '#' },*/
       { l: 'Blog', h: '/blog' },
       { l: 'Términos y condiciones', h: '/terminos' },
       { l: 'Política de Privacidad', h: '/privacidad' },
@@ -19,8 +18,8 @@ const cols = [
   },
   {
     title: 'Soporte', items: [
-      { l: 'soporte@maiabuilder.ai', h: 'mailto:soporte@maiabuilder.ai' },
-      { l: 'Contacto: +56965400115', h: 'https://wa.me/+56965400115' },
+      { l: 'helpdesk@maiabuilder.ai', h: 'mailto:helpdesk@maiabuilder.ai' },
+      { l: 'Contacto: +584242526617', h: 'https://wa.me/+584242526617' },
     ]
   },
 ];
@@ -32,7 +31,7 @@ export default function Footer() {
         <Grid container spacing={5}>
           <Grid item xs={12} md={4}>
             <Box component="a" href="#" sx={{ display: 'inline-block', mb: 2 }}>
-              <Box component="img" src="/logo-maia.svg" alt="MaIA" sx={{ height: 28 }} />
+              <Box component="img" src="/logo-maia-negativo.svg" alt="MaIA" sx={{ height: 28 }} />
             </Box>
             <Typography color="white" sx={{ fontSize: 14, maxWidth: 320 }}>
               Agentes de IA para equipos de Latinoamérica. Sin código, sin fricción, con resultados desde el primer día.

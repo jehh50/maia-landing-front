@@ -5,16 +5,16 @@ export default function WhatsAppFloat() {
   return (
     <Box
       component="a"
-      href="https://wa.me/+56965400115"
+      href="https://wa.me/+584242526617"
       target="_blank"
       rel="noopener"
       aria-label="Chat por WhatsApp"
       sx={{
-        position: 'fixed', bottom: 24, right: 24, zIndex: 100,
-        width: 50, height: 50, borderRadius: '50%',
-        bgcolor: '#E8440A', color: '#fff',
+        position: 'fixed', bottom: 32, right: 32, zIndex: 100,
+        width: 70, height: 70, borderRadius: '50%',
+        bgcolor: '#25D366', color: '#fff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 16px #E8440A',
+        boxShadow: '0 4px 16px #075E54',
         textDecoration: 'none', transition: 'transform 0.2s',
         '&:hover': { transform: 'scale(1.08)' },
       }}

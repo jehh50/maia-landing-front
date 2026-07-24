@@ -17,10 +17,10 @@ const privacy: LegalDoc = {
   slug: 'privacidad',
   es: {
     title: 'Política de Privacidad',
-    subtitle: 'Maiabuilder · Un producto de Ximple Tech SpA',
+    subtitle: 'Maiabuilder · Un producto de Ximple Tech LLC',
     updated: 'Julio de 2026',
     body: `
-La presente Política de Privacidad (en adelante, la "Política") describe cómo Ximple Tech SpA trata los datos personales en el marco de la plataforma Maiabuilder. Le recomendamos leerla con atención. Al registrarse o utilizar la plataforma, usted declara haber leído y comprendido esta Política.
+La presente Política de Privacidad (en adelante, la "Política") describe cómo Ximple Tech trata los datos personales en el marco de la plataforma Maiabuilder. Le recomendamos leerla con atención. Al registrarse o utilizar la plataforma, usted declara haber leído y comprendido esta Política.
 
 **Nota sobre idiomas:** Esta Política se publica en español e inglés. En caso de discrepancia o conflicto de interpretación entre ambas versiones, prevalecerá la versión en español.
 
@@ -28,9 +28,8 @@ La presente Política de Privacidad (en adelante, la "Política") describe cómo
 
 El responsable del tratamiento de los datos personales asociados a la plataforma es:
 
-- **Razón social:** Ximple Tech SpA
-- **RUT:** 77.683.378-9
-- **Domicilio:** El Bosque Norte 107, Oficinas 21-22, Las Condes, Santiago de Chile
+- **Razón social:** Ximple Tech LLC
+- **Domicilio:** Miami, Florida, USA
 - **Correo de contacto en materia de privacidad:** privacy@maiabuilder.ai
 
 Para cualquier consulta relacionada con esta Política o con el ejercicio de sus derechos, puede escribirnos al correo indicado.
@@ -41,7 +40,7 @@ Maiabuilder es una plataforma web que permite construir, configurar y desplegar 
 
 La plataforma está dirigida a emprendedores, profesionales, empresas y organizaciones que la utilizan en el marco de su actividad económica o profesional. La plataforma no está destinada a un uso personal o doméstico ajeno a una actividad profesional, ni a personas menores de edad.
 
-Ximple Tech SpA opera desde Chile y ofrece sus servicios principalmente en América Latina, comenzando por Chile, Perú, Venezuela y Colombia, sin descartar otros países de la región. Esta Política se rige por la legislación chilena aplicable en materia de protección de datos personales, incluida la Ley N° 19.628 y la Ley N° 21.719, sin perjuicio de las normas locales que resulten aplicables en función del país de residencia del usuario.
+Ximple Tech opera desde Chile y ofrece sus servicios principalmente en América Latina, comenzando por Chile, Perú, Venezuela y Colombia, sin descartar otros países de la región. Esta Política se rige por la legislación chilena aplicable en materia de protección de datos personales, incluida la Ley N° 19.628 y la Ley N° 21.719, sin perjuicio de las normas locales que resulten aplicables en función del país de residencia del usuario.
 
 ## 3. Roles: Responsable y Encargado del Tratamiento
 
@@ -49,13 +48,13 @@ Es fundamental distinguir dos escenarios de tratamiento de datos dentro de la pl
 
 ### 3.1. Datos de nuestros clientes (Usuarios de la Plataforma)
 
-Respecto de los datos de cuenta, facturación e identificación de las personas que contratan y utilizan Maiabuilder, Ximple Tech SpA actúa como responsable del tratamiento.
+Respecto de los datos de cuenta, facturación e identificación de las personas que contratan y utilizan Maiabuilder, Ximple Tech LLC actúa como responsable del tratamiento.
 
 ### 3.2. Datos que fluyen a través de los agentes (Usuarios Finales)
 
-Respecto del contenido de las conversaciones que los usuarios finales mantienen con los agentes, así como de la información y el conocimiento que el cliente carga para entrenar a sus agentes, Ximple Tech SpA actúa exclusivamente como encargado del tratamiento (procesador). Ximple actúa como canal de comunicación y proveedor tecnológico: no determina las finalidades de dicho tratamiento y no es responsable ni autor de la información intercambiada.
+Respecto del contenido de las conversaciones que los usuarios finales mantienen con los agentes, así como de la información y el conocimiento que el cliente carga para entrenar a sus agentes, Ximple Tech actúa exclusivamente como encargado del tratamiento (procesador). Ximple actúa como canal de comunicación y proveedor tecnológico: no determina las finalidades de dicho tratamiento y no es responsable ni autor de la información intercambiada.
 
-El cliente es el titular y responsable de la información que utilizan sus agentes. En consecuencia, corresponde al cliente contar con la base de legitimación adecuada (consentimiento u otra), informar a sus usuarios finales y atender el ejercicio de sus derechos. Ximple Tech SpA tratará esos datos únicamente conforme a las instrucciones del cliente y a lo establecido en el contrato de servicio correspondiente.
+El cliente es el titular y responsable de la información que utilizan sus agentes. En consecuencia, corresponde al cliente contar con la base de legitimación adecuada (consentimiento u otra), informar a sus usuarios finales y atender el ejercicio de sus derechos. Ximple Tech tratará esos datos únicamente conforme a las instrucciones del cliente y a lo establecido en el contrato de servicio correspondiente.
 
 ## 4. Datos que Recopilamos
 
@@ -95,7 +94,7 @@ Cuando el cliente elimina un agente, las conversaciones asociadas se conservan p
 
 ## 7. Encargados y Subprocesadores
 
-Para prestar el servicio, Ximple Tech SpA se apoya en proveedores tecnológicos que actúan como encargados o subencargados del tratamiento. Los principales son:
+Para prestar el servicio, Ximple Tech se apoya en proveedores tecnológicos que actúan como encargados o subencargados del tratamiento. Los principales son:
 
 - **Infraestructura en la nube:** Amazon Web Services (AWS), región Norte de Virginia, Estados Unidos.
 - **Canales de mensajería:** Twilio, Meta (WhatsApp Cloud API e Instagram).
@@ -105,7 +104,7 @@ Maiabuilder es agnóstica respecto del modelo de IA: el cliente selecciona el pr
 
 ## 8. Inteligencia Artificial y Reentrenamiento
 
-Ximple Tech SpA no desarrolla ni entrena modelos de inteligencia artificial propios. Utilizamos modelos de terceros seleccionados por el cliente.
+Ximple Tech no desarrolla ni entrena modelos de inteligencia artificial propios. Utilizamos modelos de terceros seleccionados por el cliente.
 
 Los datos de las conversaciones pueden emplearse para complementar la base de conocimiento vectorial que permite reentrenar y mejorar los agentes del propio cliente. Este proceso se realiza sin compartir los datos personales de los usuarios finales y de manera aislada por cliente, según lo indicado en las Secciones 5 y 6.
 
@@ -115,7 +114,7 @@ La webapp utiliza cookies y herramientas de analítica para su correcto funciona
 
 ## 10. Transferencias Internacionales de Datos
 
-Dado que parte de nuestra infraestructura y de nuestros proveedores se encuentran fuera del país de residencia del usuario (por ejemplo, AWS en Estados Unidos y los proveedores de modelos de IA), el uso de la plataforma implica transferencias internacionales de datos personales. Ximple Tech SpA adopta las salvaguardas contractuales y técnicas razonables para que dichas transferencias cuenten con un nivel adecuado de protección, conforme a la legislación aplicable.
+Dado que parte de nuestra infraestructura y de nuestros proveedores se encuentran fuera del país de residencia del usuario (por ejemplo, AWS en Estados Unidos y los proveedores de modelos de IA), el uso de la plataforma implica transferencias internacionales de datos personales. Ximple Tech adopta las salvaguardas contractuales y técnicas razonables para que dichas transferencias cuenten con un nivel adecuado de protección, conforme a la legislación aplicable.
 
 ## 11. Seguridad de la Información
 
@@ -125,7 +124,7 @@ Aplicamos medidas técnicas y organizativas razonables para proteger los datos p
 - **Controles de acceso** y segregación de la información por cliente y espacio de trabajo.
 - **Cifrado en tránsito** de las comunicaciones.
 
-Ximple Tech SpA se encuentra en proceso de fortalecer su gobierno de seguridad de la información con miras a certificaciones reconocidas del sector, tales como SOC 2 e ISO/IEC 27001. Ningún sistema es completamente infalible, por lo que no podemos garantizar una seguridad absoluta.
+Ximple Tech se encuentra en proceso de fortalecer su gobierno de seguridad de la información con miras a certificaciones reconocidas del sector, tales como SOC 2 e ISO/IEC 27001. Ningún sistema es completamente infalible, por lo que no podemos garantizar una seguridad absoluta.
 
 ## 12. Derechos de los Titulares
 
@@ -146,15 +145,15 @@ Podremos actualizar esta Política para reflejar cambios legales, técnicos u op
 Para consultas, solicitudes o reclamos relacionados con esta Política de Privacidad, escríbanos a:
 
 - **Correo:** privacy@maiabuilder.ai
-- **Titular:** Ximple Tech SpA — El Bosque Norte 107, Of. 21-22, Las Condes, Santiago de Chile
+- **Titular:** Ximple Tech LLC — Florida, Estados Unidos
 `.trim(),
   },
   en: {
     title: 'Privacy Policy',
-    subtitle: 'Maiabuilder · A product of Ximple Tech SpA',
+    subtitle: 'Maiabuilder · A product of Ximple Tech LLC',
     updated: 'July 2026',
     body: `
-This Privacy Policy (hereinafter, the "Policy") describes how Ximple Tech SpA processes personal data within the Maiabuilder platform. We encourage you to read it carefully. By registering or using the platform, you declare that you have read and understood this Policy.
+This Privacy Policy (hereinafter, the "Policy") describes how Ximple Tech processes personal data within the Maiabuilder platform. We encourage you to read it carefully. By registering or using the platform, you declare that you have read and understood this Policy.
 
 **Note on languages:** This Policy is published in Spanish and English. In the event of any discrepancy or conflict of interpretation between the two versions, the Spanish version shall prevail.
 
@@ -162,9 +161,8 @@ This Privacy Policy (hereinafter, the "Policy") describes how Ximple Tech SpA pr
 
 The party responsible for processing the personal data associated with the platform is:
 
-- **Legal name:** Ximple Tech SpA
-- **Tax ID (RUT):** 77.683.378-9
-- **Address:** El Bosque Norte 107, Offices 21-22, Las Condes, Santiago, Chile
+- **Legal name:** Ximple Tech LLC
+- **Address:** Miami, Florida, USA
 - **Privacy contact email:** privacy@maiabuilder.ai
 
 For any question related to this Policy or to the exercise of your rights, you may write to us at the email above.
@@ -175,7 +173,7 @@ Maiabuilder is a web platform that lets you build, configure and deploy intellig
 
 The platform is intended for entrepreneurs, professionals, companies and organizations that use it in the course of their economic or professional activity. The platform is not intended for personal or domestic use unrelated to a professional activity, nor for minors.
 
-Ximple Tech SpA operates from Chile and offers its services primarily in Latin America, starting with Chile, Peru, Venezuela and Colombia, without ruling out other countries in the region. This Policy is governed by applicable Chilean data protection legislation, including Law No. 19,628 and Law No. 21,719, without prejudice to local rules that may apply based on the user's country of residence.
+Ximple Tech operates from Chile and offers its services primarily in Latin America, starting with Chile, Peru, Venezuela and Colombia, without ruling out other countries in the region. This Policy is governed by applicable Chilean data protection legislation, including Law No. 19,628 and Law No. 21,719, without prejudice to local rules that may apply based on the user's country of residence.
 
 ## 3. Roles: Data Controller and Data Processor
 
@@ -183,13 +181,13 @@ It is essential to distinguish two data processing scenarios within the platform
 
 ### 3.1. Data of our customers (Platform Users)
 
-With respect to the account, billing and identification data of the persons who contract and use Maiabuilder, Ximple Tech SpA acts as the data controller.
+With respect to the account, billing and identification data of the persons who contract and use Maiabuilder, Ximple Tech LLC acts as the data controller.
 
 ### 3.2. Data flowing through the agents (End Users)
 
-With respect to the content of the conversations that end users hold with the agents, as well as the information and knowledge that the customer uploads to train their agents, Ximple Tech SpA acts exclusively as a data processor. Ximple acts as a communication channel and technology provider: it does not determine the purposes of such processing and is neither responsible for nor the author of the information exchanged.
+With respect to the content of the conversations that end users hold with the agents, as well as the information and knowledge that the customer uploads to train their agents, Ximple Tech acts exclusively as a data processor. Ximple acts as a communication channel and technology provider: it does not determine the purposes of such processing and is neither responsible for nor the author of the information exchanged.
 
-The customer is the owner of and responsible for the information used by their agents. Accordingly, it is the customer's responsibility to have the appropriate legal basis (consent or other), to inform their end users and to handle the exercise of their rights. Ximple Tech SpA will process such data solely in accordance with the customer's instructions and the applicable service agreement.
+The customer is the owner of and responsible for the information used by their agents. Accordingly, it is the customer's responsibility to have the appropriate legal basis (consent or other), to inform their end users and to handle the exercise of their rights. Ximple Tech will process such data solely in accordance with the customer's instructions and the applicable service agreement.
 
 ## 4. Data We Collect
 
@@ -229,7 +227,7 @@ When the customer deletes an agent, the associated conversations are kept for a 
 
 ## 7. Processors and Subprocessors
 
-To provide the service, Ximple Tech SpA relies on technology providers that act as processors or subprocessors. The main ones are:
+To provide the service, Ximple Tech relies on technology providers that act as processors or subprocessors. The main ones are:
 
 - **Cloud infrastructure:** Amazon Web Services (AWS), North Virginia region, United States.
 - **Messaging channels:** Twilio, Meta (WhatsApp Cloud API and Instagram).
@@ -239,7 +237,7 @@ Maiabuilder is model-agnostic: the customer selects the model provider that thei
 
 ## 8. Artificial Intelligence and Retraining
 
-Ximple Tech SpA does not develop or train its own artificial intelligence models. We use third-party models selected by the customer.
+Ximple Tech does not develop or train its own artificial intelligence models. We use third-party models selected by the customer.
 
 Conversation data may be used to complement the vector knowledge base that enables retraining and improving the customer's own agents. This process is carried out without sharing end users' personal data and in isolation per customer, as indicated in Sections 5 and 6.
 
@@ -249,7 +247,7 @@ The web app uses cookies and analytics tools for its proper operation, to rememb
 
 ## 10. International Data Transfers
 
-Since part of our infrastructure and providers are located outside the user's country of residence (for example, AWS in the United States and the AI model providers), the use of the platform involves international transfers of personal data. Ximple Tech SpA adopts reasonable contractual and technical safeguards so that such transfers have an adequate level of protection, in accordance with applicable law.
+Since part of our infrastructure and providers are located outside the user's country of residence (for example, AWS in the United States and the AI model providers), the use of the platform involves international transfers of personal data. Ximple Tech adopts reasonable contractual and technical safeguards so that such transfers have an adequate level of protection, in accordance with applicable law.
 
 ## 11. Information Security
 
@@ -259,7 +257,7 @@ We apply reasonable technical and organizational measures to protect personal da
 - **Access controls** and segregation of information per customer and workspace.
 - **Encryption in transit** of communications.
 
-Ximple Tech SpA is in the process of strengthening its information security governance with a view to recognized industry certifications, such as SOC 2 and ISO/IEC 27001. No system is completely infallible, so we cannot guarantee absolute security.
+Ximple Tech is in the process of strengthening its information security governance with a view to recognized industry certifications, such as SOC 2 and ISO/IEC 27001. No system is completely infallible, so we cannot guarantee absolute security.
 
 ## 12. Rights of Data Subjects
 
@@ -280,7 +278,7 @@ We may update this Policy to reflect legal, technical or operational changes. We
 For questions, requests or complaints related to this Privacy Policy, write to us at:
 
 - **Email:** privacy@maiabuilder.ai
-- **Owner:** Ximple Tech SpA — El Bosque Norte 107, Of. 21-22, Las Condes, Santiago, Chile
+- **Owner:** Ximple Tech LLC — Florida, United States
 `.trim(),
   },
 };
@@ -289,10 +287,10 @@ const terms: LegalDoc = {
   slug: 'terminos',
   es: {
     title: 'Términos y Condiciones',
-    subtitle: 'Maiabuilder · Un producto de Ximple Tech SpA',
+    subtitle: 'Maiabuilder · Un producto de Ximple Tech LLC',
     updated: 'Julio de 2026',
     body: `
-Los presentes Términos y Condiciones (en adelante, los "Términos") regulan el acceso y uso de la plataforma Maiabuilder (en adelante, la "Plataforma"), un producto de Ximple Tech SpA (en adelante, "Ximple"). Al registrarse o utilizar la Plataforma, el cliente (en adelante, el "Cliente" o "usted") acepta quedar obligado por estos Términos. Si no está de acuerdo, no debe utilizar la Plataforma.
+Los presentes Términos y Condiciones (en adelante, los "Términos") regulan el acceso y uso de la plataforma Maiabuilder (en adelante, la "Plataforma"), un producto de Ximple Tech LLC (en adelante, "Ximple"). Al registrarse o utilizar la Plataforma, el cliente (en adelante, el "Cliente" o "usted") acepta quedar obligado por estos Términos. Si no está de acuerdo, no debe utilizar la Plataforma.
 
 **Idiomas:** Estos Términos se publican en español e inglés. En caso de discrepancia entre ambas versiones, prevalecerá la versión en español.
 
@@ -376,7 +374,7 @@ Ximple podrá actualizar estos Términos para reflejar cambios legales, técnico
 
 ## 11. Ley Aplicable y Jurisdicción
 
-Estos Términos se rigen por las leyes de la República de Chile. Cualquier controversia derivada de o relacionada con estos Términos o con el uso de la Plataforma se someterá a la competencia de los tribunales ordinarios de justicia con asiento en la ciudad de Santiago de Chile, renunciando las partes a cualquier otro fuero que pudiera corresponderles.
+Estos Términos se rigen por las leyes de los Estados Unidos de Norteamérica. Cualquier controversia derivada de o relacionada con estos Términos o con el uso de la Plataforma se someterá a la competencia de los tribunales ordinarios de justicia con asiento en la ciudad de Miami, renunciando las partes a cualquier otro fuero que pudiera corresponderles.
 
 ## 12. Disposiciones Generales
 
@@ -390,15 +388,15 @@ Estos Términos se rigen por las leyes de la República de Chile. Cualquier cont
 Para consultas relacionadas con estos Términos, escríbanos a:
 
 - **Correo:** privacy@maiabuilder.ai
-- **Titular:** Ximple Tech SpA, RUT 77.683.378-9 — El Bosque Norte 107, Of. 21-22, Las Condes, Santiago de Chile
+- **Titular:** Ximple Tech LLC — Miami, Florida, Estados Unidos
 `.trim(),
   },
   en: {
     title: 'Terms and Conditions',
-    subtitle: 'Maiabuilder · A product of Ximple Tech SpA',
+    subtitle: 'Maiabuilder · A product of Ximple Tech LLC',
     updated: 'July 2026',
     body: `
-These Terms and Conditions (hereinafter, the "Terms") govern access to and use of the Maiabuilder platform (hereinafter, the "Platform"), a product of Ximple Tech SpA (hereinafter, "Ximple"). By registering or using the Platform, the customer (hereinafter, the "Customer" or "you") agrees to be bound by these Terms. If you do not agree, you must not use the Platform.
+These Terms and Conditions (hereinafter, the "Terms") govern access to and use of the Maiabuilder platform (hereinafter, the "Platform"), a product of Ximple Tech LLC (hereinafter, "Ximple"). By registering or using the Platform, the customer (hereinafter, the "Customer" or "you") agrees to be bound by these Terms. If you do not agree, you must not use the Platform.
 
 **Languages:** These Terms are published in Spanish and English. In the event of any discrepancy between the two versions, the Spanish version shall prevail.
 
@@ -482,7 +480,7 @@ Ximple may update these Terms to reflect legal, technical or operational changes
 
 ## 11. Governing Law and Jurisdiction
 
-These Terms are governed by the laws of the Republic of Chile. Any dispute arising from or related to these Terms or the use of the Platform shall be submitted to the jurisdiction of the ordinary courts of justice seated in the city of Santiago, Chile, with the parties waiving any other jurisdiction that may correspond to them.
+These Terms are governed by the laws of the United States of America. Any dispute arising from or related to these Terms or the use of the Platform shall be submitted to the jurisdiction of the ordinary courts of justice seated in the city of Miami, with the parties waiving any other jurisdiction that may correspond to them.
 
 ## 12. General Provisions
 
@@ -496,7 +494,7 @@ These Terms are governed by the laws of the Republic of Chile. Any dispute arisi
 For questions related to these Terms, write to us at:
 
 - **Email:** privacy@maiabuilder.ai
-- **Owner:** Ximple Tech SpA, Tax ID (RUT) 77.683.378-9 — El Bosque Norte 107, Of. 21-22, Las Condes, Santiago, Chile
+- **Owner:** Ximple Tech LLC — Miami, Florida, United States
 `.trim(),
   },
 };
