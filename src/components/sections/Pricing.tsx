@@ -60,11 +60,11 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
               position: 'relative', p: 3.5, borderRadius: 1, background: '#fff',
               display: 'flex', flexDirection: 'column', height: '100%',
               border: p.featured ? '2px solid var(--orange)' : '1px solid var(--border)',
-              boxShadow: p.featured ? '0 12px 40px rgba(232,68,10,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
+              boxShadow: p.featured ? '0 14px 40px rgba(232,68,10,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
             }}>
               {p.featured && (
                 <Box sx={{
-                  position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
+                  position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
                   px: 1.5, py: 0.5, borderRadius: 100, background: 'primary.main',
                   bgcolor: 'primary.main', color: '#fff', fontSize: 11, fontWeight: 700,
                 }}>Más popular</Box>
@@ -84,7 +84,7 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
               {p.trial && (
                 <Box sx={{
                   mt: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75,
-                  py: 1, px: 1.5, borderRadius: 0.5, fontWeight: 700, fontSize: 2, letterSpacing: 0.2,
+                  py: 1, px: 1.5, borderRadius: 0.5, fontWeight: 700, fontSize: 14, letterSpacing: 0.2,
                   color: 'var(--green)', bgcolor: 'var(--green-l)', border: '1px solid rgba(22,163,74,0.25)',
                 }}>
                   <CardGiftcardIcon sx={{ fontSize: 18 }} />
