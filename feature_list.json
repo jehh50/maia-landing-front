@@ -1,0 +1,286 @@
+{
+  "project": "maia-landing-front",
+  "updated_at": "2026-07-29",
+  "notes": "Backlog vivo. Estados: pending | in_progress | done | blocked. Una feature a la vez, la de menor id entre las pending (ver AGENTS.md §4). Los ids 1-16 corresponden a la construcción original de la app (ya en produccion) y no se re-listan aqui; el backlog abierto arranca en 17.",
+  "features": [
+    {
+      "id": 17,
+      "name": "Ruta 404",
+      "status": "done",
+      "priority": "alta",
+      "description": "Hoy no existe una ruta comodin '*'. Cualquier path desconocido cae en el rewrite SPA de Vercel y renderiza una pantalla en blanco, sin navegacion ni salida.",
+      "acceptance": [
+        "Existe <Route path=\"*\"> en src/main.tsx que renderiza una pagina NotFound",
+        "La pagina usa Navbar y Footer y ofrece un enlace de vuelta a '/'",
+        "Test: MemoryRouter con initialEntries=['/ruta-que-no-existe'] muestra el contenido 404 y no una pantalla vacia",
+        "Las rutas existentes siguen resolviendo igual (ninguna cae en el comodin)"
+      ],
+      "files": [
+        "src/main.tsx",
+        "src/pages/NotFound.tsx",
+        "src/pages/__tests__/NotFound.test.tsx"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 18,
+      "name": "Eliminar el flag muerto 'enabled' de AdminLayout",
+      "status": "done",
+      "priority": "baja",
+      "description": "Los tres items de navegacion de src/admin/AdminLayout.tsx:6-8 tienen enabled: true, asi que la rama 'proximamente' de la linea 58 es codigo inalcanzable.",
+      "acceptance": [
+        "El campo 'enabled' y su rama else desaparecen de AdminLayout.tsx",
+        "La navegacion del admin sigue mostrando Inicio, Leads y Blog, con el mismo marcado activo",
+        "npm test, npm run typecheck y npm run build siguen en verde"
+      ],
+      "files": [
+        "src/admin/AdminLayout.tsx"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 19,
+      "name": "Actualizar README.md al estado real del proyecto",
+      "status": "done",
+      "priority": "media",
+      "description": "El README de la raiz describe el proyecto anterior al router: one-page sin rutas, puertos 5173/3001, api.ts con solo postLead. Induce a error a cualquier agente o humano que entre por ahi.",
+      "acceptance": [
+        "El README refleja rutas reales, puerto 5174, proxy a :3002 y los scripts reales de package.json",
+        "Apunta a AGENTS.md y docs/architecture.md como referencia vigente en vez de duplicar su contenido",
+        "No contradice ningun dato de docs/architecture.md"
+      ],
+      "files": [
+        "README.md"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 20,
+      "name": "Helper de normalizacion de respuestas de la API",
+      "status": "done",
+      "priority": "media",
+      "description": "Los helpers de src/lib/api.ts devuelven { ok, status, data } y cada consumidor discrimina a mano con \"'rows' in data\". El patron se repite en todo el admin y el blog. Un helper que normalice a { ok: true, data } | { ok: false, error } recortaria el ruido y unificaria el manejo de errores.",
+      "acceptance": [
+        "src/lib/api.ts expone el helper de normalizacion, con test propio de sus casos: 200 con body, 200 sin body, 4xx con error, 5xx sin body",
+        "Al menos dos consumidores reales migran al helper (p. ej. BlogIndex y LeadsList) y sus tests siguen verdes sin cambiar las aserciones sobre fetch.mock.calls",
+        "La forma publica de los helpers existentes no cambia para los consumidores no migrados: la migracion es incremental",
+        "docs/api-contract.md documenta la nueva forma normalizada"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/lib/__tests__/api.test.ts",
+        "docs/api-contract.md"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 21,
+      "name": "useReveal observa contenido montado despues del primer render",
+      "status": "done",
+      "priority": "baja",
+      "description": "src/hooks/useReveal.ts hace un unico querySelectorAll('.reveal') al montar. Cualquier nodo .reveal montado despues (listados asincronos, secciones condicionales) nunca recibe la clase .visible y queda invisible si el CSS lo oculta de partida.",
+      "acceptance": [
+        "Los nodos .reveal insertados tras el montaje quedan observados y reciben .visible al entrar en viewport",
+        "El observer se desconecta en el cleanup del efecto, sin fugas",
+        "Test que monta contenido .reveal de forma diferida y verifica que se observa"
+      ],
+      "files": [
+        "src/hooks/useReveal.ts",
+        "src/hooks/__tests__/useReveal.test.tsx"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 22,
+      "name": "Code splitting por ruta",
+      "status": "done",
+      "priority": "media",
+      "description": "El bundle es monolitico (~2.5 MB, aviso de chunk >500 kB en cada build). Un visitante de la landing descarga tambien todo el panel admin y @uiw/react-md-editor. El unico import() dinamico hoy es el efecto Vanta del Hero.",
+      "acceptance": [
+        "Las rutas /admin/* y las paginas del blog se cargan con React.lazy + Suspense y un fallback coherente con el tema",
+        "El chunk de entrada baja de forma medible respecto al baseline (~2.5 MB); anotar antes/despues en progress/current.md",
+        "No hay flash ni pantalla en blanco al navegar entre rutas",
+        "Los 34 tests existentes siguen verdes (ajustar los wrappers a Suspense si hace falta, no las aserciones)"
+      ],
+      "files": [
+        "src/main.tsx"
+      ],
+      "depends_on": [
+        17
+      ]
+    },
+    {
+      "id": 23,
+      "name": "Unificar los tokens de color duplicados",
+      "status": "done",
+      "priority": "baja",
+      "description": "Los mismos valores viven en el tema MUI (src/theme/theme.ts) y en las variables CSS (src/styles/globals.css). Cambiar un color obliga a tocar dos sitios y es facil que se desincronicen.",
+      "acceptance": [
+        "Existe una unica fuente de verdad de los valores y la otra capa los deriva de ella",
+        "Ningun color queda hardcodeado en componentes",
+        "El aspecto visual no cambia: revisar landing, blog y admin a 360 px y 1440 px y anotarlo en progress/current.md",
+        "Decision de arquitectura registrada en docs/architecture.md §6"
+      ],
+      "files": [
+        "src/theme/theme.ts",
+        "src/styles/globals.css",
+        "docs/architecture.md"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 24,
+      "name": "Verificacion visual del backlog 17-23 a 360 y 1440 px",
+      "status": "done",
+      "priority": "alta",
+      "description": "Las features 17, 22 y 23 cerraron con su acceptance visual sin verificar. Se dio por bloqueado por falta de navegador, pero es FALSO: hay firefox en /usr/bin/firefox y su modo --headless --screenshot renderiza el SPA correctamente (JS incluido). Receta validada: firefox --headless --screenshot=\"$PWD/out.png\" --window-size=ANCHO,ALTO URL — el destino debe ser ruta absoluta o no escribe el archivo.",
+      "acceptance": [
+        "404 (/ruta-que-no-existe) a 360 y 1440 px: bloque centrado, Navbar fija no tapa el titulo, Footer no se solapa con el CTA",
+        "Navegacion a /blog y a /admin/* sin flash ni pantalla en blanco, y sin parpadeo del sidebar del admin al moverse dentro del panel (feature 22)",
+        "Landing, blog y admin sin ningun cambio de color respecto a produccion (feature 23)",
+        "Resultado anotado en progress/current.md"
+      ],
+      "files": [],
+      "depends_on": []
+    },
+    {
+      "id": 25,
+      "name": "Llevar los rgba() de marca a tokens.ts",
+      "status": "done",
+      "priority": "media",
+      "description": "Detectado en la review de la feature 23 (N3). Quedan 8 literales rgba(232,68,10,x) y rgba(22,163,74,x) en Pain.tsx, Pricing.tsx y Solution.tsx que duplican el naranja y el verde de marca fuera de tokens.ts: cambiar brand.orange dejaria esas sombras con el color viejo. No son hex, asi que el acceptance 2 de la 23 no los cubria.",
+      "acceptance": [
+        "Los 8 literales usan alpha(tokens.brand.*, x), el patron ya probado en src/theme/theme.ts",
+        "Los valores computados no cambian: verificar rgba resultante uno por uno",
+        "grep -rnE 'rgba\\\\(232|rgba\\\\(22, ?163' src/ no devuelve nada"
+      ],
+      "files": [
+        "src/components/sections/Pain.tsx",
+        "src/components/sections/Pricing.tsx",
+        "src/components/sections/Solution.tsx"
+      ],
+      "depends_on": [
+        23
+      ]
+    },
+    {
+      "id": 26,
+      "name": "Limpiar residuos preexistentes de Pricing.tsx",
+      "status": "done",
+      "priority": "baja",
+      "description": "Dos hallazgos preexistentes de la review de la feature 23, dejados fuera de scope por C10. (N1) Bloque JSX comentado en Pricing.tsx:105-132 que arrastra el ultimo #fff del repo y viola conventions §7. (N4) Pricing.tsx:69 tiene background: 'primary.main' junto a bgcolor: 'primary.main'; sx no mapea la clave background a la paleta, asi que emite una declaracion invalida que el navegador descarta. El render lo salva el bgcolor de al lado.",
+      "acceptance": [
+        "El bloque JSX comentado desaparece y con el el ultimo #fff hardcodeado",
+        "La declaracion background: 'primary.main' invalida desaparece",
+        "El render no cambia: el bgcolor contiguo ya aportaba el color",
+        "grep -rnE '#[0-9a-fA-F]{3,8}' src/ solo devuelve las excepciones justificadas en progress/impl_23.md"
+      ],
+      "files": [
+        "src/components/sections/Pricing.tsx"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 27,
+      "name": "Andamiaje admin para usuarios, imagenes y precios",
+      "status": "done",
+      "priority": "alta",
+      "description": "Prepara el terreno compartido de las tres vistas nuevas para que las features 28-30 puedan trabajar en paralelo sin pisarse. Crea las rutas, las entradas de sidebar y un componente minimo por recurso; NO implementa las vistas. Es la unica feature del grupo que toca archivos compartidos (AppRoutes.tsx, AdminLayout.tsx y sus tests): las 28-30 solo tocan su propia carpeta.",
+      "acceptance": [
+        "src/AppRoutes.tsx registra las rutas /admin/users, /admin/images y /admin/prices con React.lazy y ruta literal en el import(), cada una envuelta en AdminPage, y el comodin * sigue siendo la ultima",
+        "AdminLayout.tsx anade Usuarios, Imagenes y Precios a NAV_ITEMS con end: false",
+        "src/admin/__tests__/AdminLayout.test.tsx se actualiza: el toEqual(['Inicio','Leads','Blog']) de la linea 37-40 congela la lista vieja y falla si no se toca",
+        "Existe un componente minimo por recurso (UsersList, ImagesGrid, PricesList) con su titulo, que renderiza sin errores y sirve de punto de anclaje a las features 28-30",
+        "Un test cubre que las tres rutas nuevas montan bajo la guardia sin desmontar el sidebar, siguiendo el patron de src/__tests__/AppRoutes.test.tsx:113-142",
+        "No se toca src/lib/api.ts: ninguna vista consume el backend todavia"
+      ],
+      "files": [
+        "src/AppRoutes.tsx",
+        "src/admin/AdminLayout.tsx",
+        "src/admin/users/UsersList.tsx",
+        "src/admin/images/ImagesGrid.tsx",
+        "src/admin/prices/PricesList.tsx",
+        "src/admin/__tests__/AdminLayout.test.tsx",
+        "src/__tests__/AppRoutes.test.tsx"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 28,
+      "name": "Vista admin de usuarios (maqueta con datos mock)",
+      "status": "pending",
+      "priority": "alta",
+      "description": "Maqueta la administracion de usuarios: listado con busqueda, alta, edicion y borrado con confirmacion. Se alimenta de datos mock locales, NO del backend: el backend no tiene ningun endpoint de usuarios (cero rutas, solo la tabla y dos scripts CLI; ver progress/explore_backend_cruds.md §3). Los campos si son fiables porque la tabla existe: id, email, name, role ('admin'|'editor'), created_at. password_hash NUNCA se muestra ni se modela en el front.",
+      "acceptance": [
+        "Listado con las columnas email, nombre, rol y fecha de alta, con busqueda por texto y los estados de carga, error y vacio del patron de LeadsList",
+        "Alta y edicion en formulario con validacion por campo al estilo de Login.tsx (errors por campo + helperText), no un unico mensaje global",
+        "Borrado con Dialog de confirmacion al estilo de ArticlesList.tsx:113-124",
+        "El rol se elige entre 'admin' y 'editor' unicamente, y el copy explica que editor solo accede a la seccion de blog",
+        "Los datos salen de un modulo mock propio del recurso, marcado con TODO(feature-28) y con la forma exacta de la tabla users del backend",
+        "No se toca src/lib/api.ts ni se inventa ningun endpoint",
+        "Tests: carga y pinta filas, la busqueda filtra, el formulario valida, y cancelar la confirmacion no borra"
+      ],
+      "files": [
+        "src/admin/users/UsersList.tsx",
+        "src/admin/users/UserEdit.tsx",
+        "src/admin/users/mockUsers.ts",
+        "src/admin/__tests__/UsersList.test.tsx"
+      ],
+      "depends_on": [
+        27
+      ]
+    },
+    {
+      "id": 29,
+      "name": "Vista admin de imagenes (maqueta con datos mock)",
+      "status": "pending",
+      "priority": "alta",
+      "description": "Maqueta la administracion de imagenes de la landing. El backend SI tiene el contrato cerrado (5 endpoints, tabla images), pero esta sin commitear, sin tests y sin desplegar, asi que se maqueta con mock respetando ese contrato al detalle para que el cableado futuro sea mecanico. Contrato en progress/explore_backend_cruds.md §2 y en docs/api-contract.md.",
+      "acceptance": [
+        "Galeria por seccion ('hero' y 'cta_final') que muestra filename, alt, orden, tamano y fecha, con los estados de carga, error y vacio",
+        "Formulario de subida que refleja el contrato real: campo de archivo unico, accept solo image/png, image/jpeg, image/webp (SVG excluido a proposito), limite de 5 MB validado en cliente, y campos seccion (obligatorio), alt (opcional, max 300) y orden (entero >= 0)",
+        "La UI NO ofrece 'reemplazar imagen': el PATCH del backend no admite binario, asi que cambiar una imagen es subir otra y borrar la anterior. El copy lo refleja",
+        "Edicion solo de alt, orden y seccion, que es lo que el PATCH permite",
+        "Borrado con Dialog de confirmacion",
+        "Los datos salen de un modulo mock propio del recurso, marcado con TODO(feature-29), con los 9 campos exactos de META_COLS y sin el campo bytes",
+        "No se toca src/lib/api.ts ni se construye ninguna URL contra el backend real",
+        "Tests: pinta la galeria, el filtro por seccion, el rechazo de un archivo de tipo no permitido y el de uno que excede 5 MB"
+      ],
+      "files": [
+        "src/admin/images/ImagesGrid.tsx",
+        "src/admin/images/ImageUploadDialog.tsx",
+        "src/admin/images/mockImages.ts",
+        "src/admin/__tests__/ImagesGrid.test.tsx"
+      ],
+      "depends_on": [
+        27
+      ]
+    },
+    {
+      "id": 30,
+      "name": "Vista admin de precios (maqueta con datos mock)",
+      "status": "pending",
+      "priority": "alta",
+      "description": "Maqueta la administracion de precios y del porcentaje de descuento anual. Es el recurso de mayor riesgo: en el backend NO existe nada (ni tabla, ni modulo, ni router, ni modelo de datos decidido; ver progress/explore_backend_cruds.md §4). Por eso la maqueta se construye sobre la unica especificacion real disponible, que es la interfaz Plan de src/components/sections/Pricing.tsx:6-9, y el mapeo campo a campo queda documentado en docs/api-contract.md para que el backend lo confirme o lo corrija.",
+      "acceptance": [
+        "Listado de los cuatro planes con nombre, precio mensual, precio anual, ahorro, plan destacado y trial",
+        "Edicion de un plan, incluidas sus listas de features incluidas y atenuadas",
+        "Control del porcentaje de descuento anual, que hoy esta hard-coded como el Chip 'Ahorra 10%' de Pricing.tsx:56",
+        "El caso Enterprise (precio 0 = 'a convenir') se representa explicitamente, no como un cero suelto",
+        "Los datos salen de un modulo mock propio del recurso, marcado con TODO(feature-30), cuya forma es la interfaz Plan existente",
+        "src/components/sections/Pricing.tsx NO se toca: sigue con su array plans hard-coded. Conectar la landing al backend es una feature futura, especificada en docs/api-contract.md",
+        "No se toca src/lib/api.ts ni se inventa ningun endpoint",
+        "Tests: pinta los cuatro planes, la edicion actualiza la vista y el descuento acepta solo un porcentaje valido"
+      ],
+      "files": [
+        "src/admin/prices/PricesList.tsx",
+        "src/admin/prices/PlanEditDialog.tsx",
+        "src/admin/prices/mockPrices.ts",
+        "src/admin/__tests__/PricesList.test.tsx"
+      ],
+      "depends_on": [
+        27
+      ]
+    }
+  ]
+}

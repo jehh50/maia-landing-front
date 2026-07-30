@@ -6,7 +6,7 @@ SPA de React que sirve tres productos en un solo bundle:
 
 1. **Landing pública** one-page (`/`) con captación de leads.
 2. **Blog público** (`/blog`, `/blog/:slug`) alimentado por la API.
-3. **Panel de administración** privado (`/admin/*`) para leads y artículos.
+3. **Panel de administración** privado (`/admin/*`): leads y artículos ya operativos, más usuarios, imágenes y precios **en maquetación** (features 27-30, con datos mock a la espera de que el backend publique sus endpoints — ver `docs/api-contract.md` §10).
 
 Más un par de páginas legales estáticas bilingües (`/privacidad`, `/terminos`).
 
@@ -21,7 +21,7 @@ El backend es un servicio Node aparte (no vive en este repo); aquí solo existe 
 | Build / dev server | Vite 5 | `vite.config.ts`, puerto 5174, proxy `/api` → `http://localhost:3002` |
 | UI | React 18 + TypeScript 5.6 (`strict`) | `jsx: react-jsx`, `noEmit`, `noUnusedLocals/Parameters` |
 | Design system | MUI 6 + Emotion | Tema propio en `src/theme/theme.ts`, estilos vía `sx` |
-| Routing | react-router-dom 6 | `BrowserRouter` declarado en `src/main.tsx` |
+| Routing | react-router-dom 6 | `BrowserRouter` declarado en `src/main.tsx`; tabla de rutas en `src/AppRoutes.tsx` |
 | Markdown | `react-markdown` + `remark-gfm` (lectura), `@uiw/react-md-editor` (edición) | |
 | Fondo animado | `vanta` (net) + `three` | Solo en el Hero, cargado con `import()` dinámico |
 | Teléfonos | `mui-tel-input` | Selector de país en el formulario de contacto |
@@ -36,12 +36,14 @@ Sin Tailwind, sin state manager global, sin data-fetching library: el estado es 
 
 ```
 src/
-├── main.tsx                  # Bootstrap: StrictMode → ThemeProvider → CssBaseline → BrowserRouter → Routes
+├── main.tsx                  # Bootstrap: StrictMode → ThemeProvider → CssBaseline → BrowserRouter → AppRoutes
+├── AppRoutes.tsx             # Tabla de rutas (fuera de main.tsx: ese archivo tiene createRoot y no es montable en un test)
 ├── App.tsx                   # Landing one-page: composición de secciones + estado del ContactModal
 ├── vite-env.d.ts             # Tipos de import.meta.env + declaración del módulo `vanta/dist/vanta.net.min`
 │
-├── theme/theme.ts            # createTheme + augmentación de Palette (brand.*, surface.*)
-├── styles/globals.css        # Variables CSS (--orange, --border, …) + animaciones fadeUp/blink/reveal
+├── theme/tokens.ts           # ÚNICA fuente de verdad de los colores (ver §6)
+├── theme/theme.ts            # createTheme desde tokens + augmentación de Palette (brand.*, surface.*)
+├── styles/globals.css        # Reset, body, .gradient-text y animaciones fadeUp/blink/reveal (sin colores)
 │
 ├── lib/
 │   ├── api.ts                # ÚNICO punto de contacto con el backend (todas las llamadas HTTP)
@@ -64,6 +66,7 @@ src/
 │   ├── BlogIndex.tsx         # Listado /blog (reutiliza BlogCard de sections/Blog.tsx)
 │   ├── BlogArticle.tsx       # Detalle /blog/:slug con máquina de estados de carga
 │   ├── LegalPage.tsx         # Shell bilingüe ES/EN con persistencia en localStorage
+│   ├── NotFound.tsx          # 404 de la ruta comodín: Navbar + CTA de vuelta a / + Footer
 │   └── legal/legalDocs.ts    # Contenido markdown de privacidad y términos (ES + EN)
 │
 ├── admin/                    # Área privada
@@ -72,7 +75,10 @@ src/
 │   ├── AdminLayout.tsx       # Sidebar + <Outlet context={user} />
 │   ├── AdminHome.tsx
 │   ├── leads/                # LeadsList.tsx + LeadDetailDialog.tsx
-│   └── articles/             # ArticlesList.tsx + ArticleEdit.tsx
+│   ├── articles/             # ArticlesList.tsx + ArticleEdit.tsx
+│   ├── users/                # UsersList.tsx        ← maqueta (features 27-28)
+│   ├── images/               # ImagesGrid.tsx       ← maqueta (features 27-29)
+│   └── prices/               # PricesList.tsx       ← maqueta (features 27-30)
 │
 └── test/setup.ts             # import '@testing-library/jest-dom/vitest'
 ```
@@ -83,7 +89,10 @@ Los tests viven junto al código en carpetas `__tests__/` (`components/`, `pages
 
 ## 3. Routing
 
-Todas las rutas se declaran en `src/main.tsx:25-46`.
+Todas las rutas se declaran en `src/AppRoutes.tsx`. `main.tsx` es bootstrap puro
+(`createRoot` → `ThemeProvider` → `BrowserRouter` → `<AppRoutes />`): la tabla se
+extrajo para poder montarla en un test, porque `main.tsx` ejecuta
+`createRoot(document.getElementById('root')!)` al importarse y revienta en jsdom.
 
 | Ruta | Componente | Acceso |
 |------|-----------|--------|
@@ -98,11 +107,17 @@ Todas las rutas se declaran en `src/main.tsx:25-46`.
 | `/admin/leads` | `LeadsList` | Privado |
 | `/admin/articles` | `ArticlesList` | Privado |
 | `/admin/articles/new` · `/admin/articles/:id` | `ArticleEdit` | Privado |
+| `/admin/images` | `ImagesGrid` | Privado — maqueta |
+| `/admin/prices` | `PricesList` | Privado — maqueta |
+| `/admin/users` | `UsersList` | Privado — maqueta |
+| `*` | `NotFound` | Público — 404 |
 
 Notas:
 
-- No hay code splitting por ruta: todo se resuelve con imports estáticos en `main.tsx`. El único `import()` dinámico del proyecto es el efecto Vanta del Hero.
-- No existe ruta `*` (404). Cualquier path desconocido cae en el rewrite de Vercel a `index.html` y renderiza una pantalla vacía.
+- **Code splitting por ruta** (feature 22): las páginas del blog (`BlogIndex`, `BlogArticle`) y todo el admin (`Login`, `AdminGuard`, `AdminLayout`, `AdminHome`, `LeadsList`, `ArticlesList`, `ArticleEdit`, y desde la feature 27 `UsersList`, `ImagesGrid` y `PricesList`) se declaran con `React.lazy` en `AppRoutes.tsx` y Rollup emite un chunk por ruta. El `import()` debe llevar **ruta literal**: si el path se calcula, Rollup no puede analizarlo y no emite chunk. `App` (la landing), `LegalPage` y `NotFound` siguen con import estático a propósito: son la ruta crítica del negocio o dependencias del comodín. El fallback compartido es `src/components/RouteFallback.tsx`.
+- Hay dos niveles de `<Suspense>`: uno alrededor de `<Routes>` para las rutas de primer nivel, y otro por cada hijo del `<Outlet />` del admin, de modo que la guardia y el sidebar no se desmontan al navegar dentro del panel.
+- El otro `import()` dinámico del proyecto es el efecto Vanta del Hero.
+- La ruta comodín `*` (última de la tabla) renderiza `NotFound`: un path desconocido cae en el rewrite de Vercel a `index.html` y react-router lo resuelve a la 404, con `Navbar`, `Footer` y un CTA de vuelta a `/`.
 - La navegación dentro de la landing es por anclas (`#solution`, `#features`, `#integrations`, `#pricing`, `#faq`, `#addons`, `#cta-final`), con `scroll-behavior: smooth` en `globals.css`.
 
 ### Guardia de rutas privadas
@@ -120,7 +135,7 @@ La autenticación real es por **cookie de sesión**: no se guarda token en el cl
 - `contactOpen` / `contactTipo` — controlan el `ContactModal`, montado **una sola vez** al final del árbol. Cualquier sección lo dispara con su prop `onOpenContact`, y el `tipo` (`'demo' | 'contacto'`) cambia los textos del modal y viaja al backend como clasificación del lead.
 - `isAnnual` — toggle mensual/anual, elevado a `App` porque originalmente lo compartían `Pricing` y `ROI`.
 
-`useReveal()` se invoca una vez desde `App`: registra un `IntersectionObserver` sobre todos los `.reveal` presentes en el DOM al montar y les añade `.visible` al entrar en viewport (`src/hooks/useReveal.ts`). **Solo observa los nodos existentes en el primer render**, así que contenido montado después no se anima.
+`useReveal()` se invoca una vez desde `App`: registra un `IntersectionObserver` sobre todos los `.reveal` presentes en el DOM al montar y les añade `.visible` al entrar en viewport (`src/hooks/useReveal.ts`). Desde la feature 21 un `MutationObserver` (`childList` + `subtree` sobre `document.body`) recoge además los `.reveal` montados **después** del primer render, inspeccionando solo los nodos añadidos en cada mutación. Revelar es de una sola vez: tras añadir `.visible` se hace `unobserve`, y un `WeakSet` evita observar dos veces el mismo nodo.
 
 Secciones actualmente comentadas en `App.tsx:38-47`: `Trust`, `ROI`, `Testimonials` y `Blog`. Los componentes siguen en el repo y compilan; están apagados a nivel de composición, no eliminados. `sections/Blog.tsx` sigue vivo de todos modos porque `BlogIndex` importa su `BlogCard`.
 
@@ -174,14 +189,42 @@ Vacío por defecto ⇒ rutas relativas. En dev las resuelve el proxy de Vite hac
 
 ## 6. Sistema de estilos
 
-Conviven dos fuentes de tokens con los mismos valores:
+### Una sola fuente de verdad de color: `src/theme/tokens.ts` (feature 23)
 
-1. **Tema MUI** (`src/theme/theme.ts`) — `palette` con augmentación de módulo para `brand.*` (naranja `#E8440A`, verde, tintes) y `surface.*`; tipografía Inter; `borderRadius: 12`; escala de sombras reducida a 4 niveles; overrides de `MuiButton` (píldora, `textTransform: none`), `MuiContainer` (`max-width: 1140px`) y `MuiTextField` (`fullWidth`, `size: small` por defecto).
-2. **Variables CSS** (`src/styles/globals.css`) — `--orange`, `--border`, `--bg-soft`, `--text`… usadas cuando el `sx` necesita color dentro de un `background: linear-gradient(...)` o un `border` en string, donde los tokens del tema no son cómodos.
+Hasta la feature 23 los mismos hex vivían dos veces: en la `palette` del tema MUI y en el `:root` de `src/styles/globals.css`. Cambiar un color obligaba a tocar dos archivos y nada impedía que se desincronizaran. Hoy **los valores existen una sola vez**, en `src/theme/tokens.ts`, y las dos capas de consumo derivan de él:
 
-Regla práctica: preferir tokens del tema (`color: 'primary.main'`, `bgcolor: 'surface.soft'`); recurrir a `var(--…)` solo en gradientes, bordes compuestos y strings CSS crudos. **Si se cambia un color hay que tocarlo en los dos sitios.**
+```
+src/theme/tokens.ts        ← ÚNICA fuente de verdad (hex literales)
+  ├── tokens.*             → src/theme/theme.ts  → palette MUI  → sx: bgcolor: 'surface.soft'
+  └── cssVariables         → theme.components.MuiCssBaseline.styleOverrides[':root']
+                                                 → var(--orange), var(--border), …
+```
 
-`globals.css` aporta además el reset de `box-sizing`, `.gradient-text` y las animaciones `fadeUp` (con delays `.fade-up-1..4`), `blink` y `reveal/visible`.
+Los grupos de tokens son `brand`, `surface`, `text`, `border`, `feedback`, `accent` (paleta categórica decorativa de las tarjetas de `Pain`/`Features`/`Addons`) y `external` (marca de terceros, WhatsApp). Cada hex aparece **una vez**: los alias (`feedback.successMain`, `text.onBrand`) referencian al token base.
+
+**Dirección de la derivación: TS → CSS.** Se eligió el módulo TypeScript como origen y no `globals.css` porque:
+
+- El tema tiene que existir como objeto JS antes de renderizar (`createTheme`) y MUI necesita hex reales: `alpha()` y `augmentColor` no saben operar sobre `var(--x)`, así que "CSS → tema" obligaría a `getComputedStyle` en tiempo de módulo (imposible en los tests, que importan `theme.ts` sin DOM ni `globals.css`) o a migrar todo a `createTheme({ cssVariables: true })`, que renombraría las variables a `--mui-*` y forzaría reescribir los ~90 `var(--…)` del repo.
+- Al revés funciona sin fricción: un objeto `Record<'--nombre', valor>` se inyecta tal cual como estilos globales.
+
+**Los nombres de las variables no cambiaron** (`--orange`, `--orange-h`, `--bg-soft`, `--border2`, `--muted2`…), precisamente para no tocar sus usos repartidos por el repo. `src/styles/globals.css` ya **no declara ningún color**: solo el reset de `box-sizing`, `body`, `.gradient-text` y las animaciones `fadeUp` (con delays `.fade-up-1..4`), `blink` y `reveal/visible`.
+
+**Orden de carga.** Las variables se emiten desde el tema y las monta `<CssBaseline />` (`src/main.tsx`), es decir, en el primer render de React, no en el `<link>` del CSS. No hay flash: el único consumidor de `var(--…)` que existe antes de montar React es la regla `body { background: var(--bg); color: var(--text) }` de `globals.css`, y `index.html` sirve un `<div id="root">` vacío — no hay nada pintado que pueda cambiar de color. Desde el primer render, el propio `CssBaseline` fija `body` con `background.default` / `text.primary`, que salen de los mismos tokens. Consecuencia a tener presente: **cualquier árbol montado sin `ThemeProvider` + `CssBaseline` no tendrá las variables** (es el caso de los tests, donde tampoco las tenía antes porque `globals.css` no se importa en jsdom).
+
+### Cómo usar los tokens
+
+| Caso | Qué usar | Ejemplo |
+|------|----------|---------|
+| Valor de color suelto en `sx` | Token del tema | `bgcolor: 'background.paper'`, `color: 'primary.main'`, `bgcolor: 'surface.soft'` |
+| Color dentro de un string CSS crudo (gradiente, borde compuesto, `box-shadow`) | Variable CSS | `background: 'linear-gradient(180deg, var(--bg-soft) 0%, var(--bg) 100%)'` |
+| Valor en JS puro: `style={{}}` nativo, arrays de datos, concatenación (`${accent}18`) | Import del módulo | `import { tokens } from '…/theme/tokens'` |
+| Color **con opacidad** dentro de un string CSS crudo (sombra teñida, gradiente translúcido, borde) | `alpha()` sobre el token | `` boxShadow: `0 2px 16px ${alpha(tokens.brand.orange, 0.06)}` `` |
+
+**Por qué `alpha()` y no `var(--…)` cuando hay opacidad de por medio (feature 25).** Una variable CSS lleva el color opaco: no hay forma de teñirla al 6 % sin `color-mix()` ni sin reescribirla como triplete suelto. Hasta la feature 25 eso se resolvía escribiendo el `rgba()` a mano — siete literales en `Pain`, `Pricing` y `Solution` que repetían los canales de `brand.orange` y `brand.green` fuera de `tokens.ts`. No eran hex, así que el barrido de la feature 23 no los vio. Hoy salen del token vía `alpha()`, la misma utilidad que ya usaba `theme.ts` para las sombras de `MuiButton`. `src/theme/__tests__/brandAlpha.test.tsx` congela los siete colores y comprueba en el DOM que los tres componentes los emiten.
+
+Ningún componente declara hex. El tema conserva el resto de decisiones: tipografía Inter, `borderRadius: 12`, escala de sombras reducida a 4 niveles y overrides de `MuiButton` (píldora, `textTransform: none`), `MuiContainer` (`max-width: 1140px`) y `MuiTextField` (`fullWidth`, `size: small`).
+
+`src/theme/__tests__/tokens.test.tsx` congela nombres y valores de las 19 variables CSS, comprueba que la paleta y la capa CSS salen del mismo token y verifica que los paths de paleta usados en los `sx` resuelven al color esperado.
 
 La fuente Inter se carga por `<link>` a Google Fonts desde `index.html`, con `preconnect`.
 
@@ -206,13 +249,17 @@ Componente compartido entre la vista pública del artículo y el preview en vivo
 
 ## 8. Testing
 
-`vitest run` con entorno jsdom. 7 archivos de test:
+`vitest run` con entorno jsdom. 15 archivos de test, 86 tests:
 
 ```
-components/__tests__/ContactModal.test.tsx      pages/__tests__/BlogIndex.test.tsx
-components/__tests__/MarkdownRenderer.test.tsx  pages/__tests__/BlogArticle.test.tsx
-admin/__tests__/Login.test.tsx                  admin/__tests__/LeadsList.test.tsx
-admin/__tests__/ArticlesList.test.tsx
+__tests__/AppRoutes.test.tsx                    pages/__tests__/BlogIndex.test.tsx
+components/__tests__/ContactModal.test.tsx      pages/__tests__/BlogArticle.test.tsx
+components/__tests__/MarkdownRenderer.test.tsx  pages/__tests__/NotFound.test.tsx
+components/sections/__tests__/Pricing.test.tsx  admin/__tests__/Login.test.tsx
+hooks/__tests__/useReveal.test.tsx              admin/__tests__/LeadsList.test.tsx
+lib/__tests__/api.test.ts                       admin/__tests__/ArticlesList.test.tsx
+theme/__tests__/tokens.test.tsx                 admin/__tests__/AdminLayout.test.tsx
+theme/__tests__/brandAlpha.test.tsx
 ```
 
 Convenciones observadas:
@@ -222,7 +269,10 @@ Convenciones observadas:
 - Los componentes se envuelven en `ThemeProvider` (y `MemoryRouter` cuando hay navegación).
 - `restoreAllMocks()` en `afterEach`. `testTimeout: 15000` porque las interacciones con MUI + `userEvent` son lentas.
 
-Sin cobertura configurada, sin tests E2E, sin tests de las secciones de la landing (son mayormente presentacionales).
+Sin cobertura configurada y sin tests E2E. Las secciones de la landing son
+mayormente presentacionales y siguen mayormente sin test; la excepción es
+`Pricing` (feature 26), donde el test fija el color de marca del badge y vigila
+que no reaparezcan paths de paleta sin resolver en el `sx`.
 
 ---
 
@@ -263,10 +313,8 @@ Al ser `VITE_*`, se **inlinea en el bundle** en build time: es pública y debe c
 
 **Lo que hay que tener presente**
 
-- **Tokens duplicados** entre tema MUI y variables CSS: todo cambio de color va en dos sitios.
-- **Bundle monolítico**: el admin (con `@uiw/react-md-editor`) y `three`/`vanta` se resuelven estáticamente salvo el efecto Vanta. Un visitante de la landing descarga también el código del panel. Es el candidato natural a `React.lazy` por ruta.
-- **Sin ruta 404**: un path inválido renderiza en blanco.
-- **`useReveal` solo observa el DOM inicial**: contenido montado tras el primer render no recibe la animación.
-- **Discriminación manual de respuestas** (`'rows' in data`) repetida en cada consumidor; un helper que normalizara a `{ ok, data } | { ok: false, error }` recortaría bastante ruido.
-- **`AdminLayout` tiene un flag `enabled` muerto**: los tres ítems de navegación están en `true` y la rama "próximamente" ya no se alcanza.
-- El `README.md` de la raíz describe el estado anterior del proyecto (one-page sin router, puertos 5173/3001); este documento es la referencia vigente.
+- **Tokens de color unificados** desde la feature 23: `src/theme/tokens.ts` es la única fuente y las variables CSS se emiten desde el tema (§6). Los `rgba(232,68,10,…)` / `rgba(22,163,74,…)` de `box-shadow` y gradientes, que la 23 no vio por no ser hex, los cerró la **feature 25**: hoy salen del token vía `alpha()` y `src/theme/__tests__/brandAlpha.test.tsx` los congela (detalle en §6). Lo único que queda a mano son sombras neutras (`rgba(0,0,0,…)`), que no duplican ningún token de marca.
+- **Peso del chunk de entrada**: desde la feature 22 el admin y el blog salen del chunk de entrada por `React.lazy` (2 525 kB → 1 585 kB; el CSS de entrada, 35 kB → 1,3 kB). Lo que queda dentro es `three`, importado de forma **estática** por `Hero.tsx` (`import * as THREE from 'three'`) aunque el efecto Vanta se cargue con `import()`. Por eso el build sigue avisando de chunks >500 kB.
+- **`useReveal` se invoca dos veces**: desde `App.tsx` y desde `sections/Blog.tsx`. Si ambos se montan hay dos pares de observers sobre los mismos nodos. El resultado es idéntico (añadir `.visible` es idempotente), pero cuesta un `MutationObserver` de más.
+- **Discriminación manual de respuestas** (`'rows' in data`): el helper que la centraliza ya existe desde la **feature 20** — `normalizeApi()` en `src/lib/api.ts`, que devuelve `{ ok: true, status, data } | { ok: false, status, error }`. La migración de los consumidores quedó a medias: `admin/articles/ArticlesList.tsx:26` y `components/sections/Blog.tsx:97` siguen discriminando a mano. Es deuda de adopción, no de diseño: **no hace falta una feature de "crear el helper"**.
+- El `README.md` de la raíz es la puerta de entrada para humanos: orienta (arranque, scripts, rutas, `VITE_API_BASE`) y remite aquí. **Este documento sigue siendo la referencia técnica vigente**; si algo se contradice, manda este.

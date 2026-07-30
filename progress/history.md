@@ -1152,3 +1152,136 @@ líder al cerrar la sesión: verde en las tres.
   `.gitignore`): requiere un `git rm --cached`, decisión de un humano.
 - **No quedan features `pending` ni `in_progress` en `feature_list.json`:** el
   backlog 17-26 queda cerrado por completo.
+
+---
+
+## 2026-07-29 — Feature 27: Andamiaje admin para usuarios, imágenes y precios
+
+**Estado final:** done (`APROBADO` a la primera en `progress/review_27.md`: los 6
+acceptance criteria cumplidos, checkpoints C1-C11 todos en `[x]`, "Detalle de los
+fallos: Ninguno"). El reviewer no heredó la verificación del informe: la rehízo,
+leyó los tres puntos de `AppRoutes.tsx` en la fuente, acotó el scope por `mtime`
+archivo por archivo y **midió** el límite del test nuevo montando en un directorio
+temporal una réplica de la tabla de rutas sin `AdminPage`.
+**Rama / commit:** `feat/admin-cruds` · (sin commitear al cerrar la sesión; el
+commit por feature lo hace el humano) · **archivos de `src/` modificados: 4 + 3 nuevos**
+
+**Qué se hizo:**
+
+- **Tres componentes de anclaje nuevos, deliberadamente mínimos**
+  (`src/admin/users/UsersList.tsx`, `src/admin/images/ImagesGrid.tsx`,
+  `src/admin/prices/PricesList.tsx`): `Box` + título `variant="h5" fontWeight={700}
+  sx={{ mb: 3 }}` (patrón de `LeadsList.tsx:71`) + un párrafo de «en construcción».
+  **Cero `fetch`, cero estado, cero mock, cero tabla**: las features 28-30 los
+  reescriben completos. Cada uno lleva un JSDoc que nombra la feature que lo
+  sustituirá, en vez de un `// TODO` suelto (`conventions.md` §7).
+- **`src/AppRoutes.tsx`:** tres `lazy` con **ruta literal** en el `import()`, tres
+  `<Route>` dentro del `<Route path="/admin">` **cada una con su propio
+  `<AdminPage>`**, y el comodín `*` sigue siendo la última ruta del `<Routes>`. El
+  build emite los tres chunks esperados (`UsersList-*.js`, `ImagesGrid-*.js`,
+  `PricesList-*.js`), que es la prueba de que el `import()` es analizable por Rollup.
+- **`src/admin/AdminLayout.tsx`:** `NAV_ITEMS` pasa de 3 a 6 ítems, los tres nuevos
+  con `end: false`; `Inicio` sigue siendo el único `end: true`. Se actualizó también
+  el JSDoc del componente, que enumeraba las tres secciones y habría quedado falso.
+- **Tests:** `AdminLayout.test.tsx` actualiza el `toEqual(['Inicio','Leads','Blog'])`
+  que congelaba la lista vieja **y añade** las tres aserciones de `href` que
+  faltaban (el test acabó más estricto: 3 labels → 6 labels + 6 hrefs, sigue siendo
+  `toEqual` sobre la lista completa y ordenada, no un `toContain`).
+  `AppRoutes.test.tsx` suma **+1 test** que navega por clic a Imágenes → Precios →
+  Usuarios y comprueba en cada salto `toBe(nav)` sobre el nodo capturado una sola vez.
+- Informe en `progress/impl_27.md`; review en `progress/review_27.md`.
+
+**Decisiones:**
+
+- **Esta feature existe para que las 28-30 puedan ir en paralelo.** Es la única del
+  grupo que toca archivos compartidos (`AppRoutes.tsx`, `AdminLayout.tsx` y sus
+  tests); las 28-30 se limitan a su propia carpeta. Nota para quien las tome: los
+  archivos de anclaje **se reescriben completos**, no se les añade encima; lo único
+  que hay que conservar es el nombre del `export default` y la ruta del archivo,
+  porque es lo que `AppRoutes.tsx` importa por literal — renombrarlos obliga a tocar
+  otra vez el archivo compartido.
+- **«Imágenes» con tilde, contra el «Imagenes» de `feature_list.json`.** El reviewer
+  validó la decisión con evidencia, no por gusto: el JSON entero tiene **un solo**
+  carácter acentuado en ~17 kB mientras acumula «anade», «comodin», «minimo»,
+  «seccion», «busqueda» — es un artefacto de codificación del archivo, no una
+  decisión de copy. `conventions.md` §6 manda copy en español correcto y el panel ya
+  escribe «Cerrar sesión» y «Navegación admin» con tilde.
+- **Orden del sidebar: `Inicio · Leads · Blog · Imágenes · Precios · Usuarios`.** El
+  enunciado dejaba el orden al criterio del implementer: contenido y negocio
+  primero, gestión de accesos (Usuarios) al final.
+- **Un solo test con bucle para las tres rutas, no tres tests.** Validado por el
+  reviewer como patrón ya existente en el repo (`Pricing.test.tsx:49`,
+  `brandAlpha.test.tsx:69`), y ni `CHECKPOINT.md` C2 ni `verification.md` §5 cuentan
+  tests: exigen que cada punto del acceptance tenga verificación, y el acceptance 5
+  es un punto con tres rutas de contrato idéntico. Peaje asumido y declarado: un
+  fallo en «Imágenes» corta el `it` y deja Precios y Usuarios sin ejecutar.
+- **Límite del test nuevo, medido por el reviewer (§6 de `review_27.md`):** el
+  `toBe(nav)` sí distingue «el sidebar sigue ahí» de «se destruyó y se volvió a
+  crear», pero **no falla si se quita un `AdminPage`**, porque React 18 no destruye
+  el subárbol al re-suspender: lo oculta con `display:none` y lo revela con los
+  mismos nodos, y la aserción ocurre **después** de que resuelva el `findByRole`. La
+  réplica sin `AdminPage` pasó el bucle en verde. Es una limitación heredada del
+  patrón que el propio acceptance mandaba seguir (viene del test de la feature 22),
+  no de esta implementación.
+- **Docs (H1 del review), fuera del scope del implementer y resuelto por el líder en
+  el mismo cierre:** `docs/architecture.md` quedó desactualizado en cuatro sitios que
+  esta feature cambió (`:9` el resumen del panel, `:72-78` el mapa de `src/admin/`
+  sin `users/`/`images/`/`prices/`, `:94-107` la tabla de rutas y `:111` la
+  enumeración de componentes con `React.lazy`). El implementer sí actualizó lo que se
+  le pedía explícitamente (conteo 85 → 86 en `docs/verification.md` §1-§2 y
+  `docs/architecture.md` §8) y `architecture.md` no estaba en el campo `files` de la
+  feature; el resto lo corrigió el líder al cerrar, antes de lanzar las 28-30, porque
+  es lo que van a leer.
+- **Scope respetado, verificado por `mtime`:** exactamente los 7 archivos del campo
+  `files`, ni uno más. `src/lib/api.ts` **intacto** (comprobado por tres vías:
+  `mtime` del 27-jul, diff que solo contiene el `normalizeApi` de la feature 20, y
+  superficie exportada sin un solo helper de los tres recursos nuevos). Sin tocar
+  `AdminGuard.tsx`, `AdminHome.tsx`, la landing ni infraestructura (`git diff --stat`
+  de `package.json`, `vite.config.ts`, `tsconfig.json`, `vercel.json`, `.gitignore`,
+  `index.html` → salida vacía). Cero dependencias nuevas. Ningún `.env*` leído ni
+  escrito; no hace falta ninguna variable nueva.
+
+**Verificación:** `npm test` **15 archivos / 86 tests** · exit 0 (baseline previo
+15 / 85 de la feature 26; delta +1 test, ningún archivo de test nuevo, ningún test
+previo roto) · `npm run typecheck` exit 0 · `npm run build` exit 0 (aviso esperado
+de chunk >500 kB; entrada 1 586,87 kB, +0,39 kB; módulos 1 738 → 1 741). Ejecutado
+por el implementer al abrir y al cerrar, de forma independiente por el reviewer,
+por el líder, y una cuarta vez al cerrar la sesión: verde en todas.
+
+**Pendiente:**
+
+- **Features 28, 29 y 30 quedan `pending` y ya pueden ir en paralelo:** cada una
+  toca solo su carpeta (`admin/users/`, `admin/images/`, `admin/prices/`) y su test.
+  Es precisamente lo que este andamiaje habilita.
+- **Copy de `AdminHome.tsx`, candidata a feature nueva** (levantada por el
+  implementer en `impl_27.md` §6.a y confirmada por el reviewer en H3, **no**
+  arreglada por C10): `:18` («podrás gestionar leads y contenido del blog») queda
+  **incompleto** con seis secciones pero no falso; `:26-32` («la sección de Leads y
+  el mantenedor del blog llegarán en las próximas iteraciones») **ya era falso antes
+  de esta feature** — ambas existen desde las features 19-20 y el archivo no se toca
+  desde el 26 de mayo. Recomendación de ambos: reescribir el bloque «Próximos pasos»
+  entero de una vez cuando cierren las 28-30, incluida la mención a
+  `node scripts/create-user.js` que la feature 28 sustituirá por UI.
+- **H2 del review, feature de arnés por su cuenta:** para tener un test que **sí**
+  rompa al quitar un `AdminPage` hay que asertar **dentro** de la ventana de
+  suspensión — retardar el `lazy` y comprobar `queryAllByRole('navigation')` = 1
+  mientras el fallback está en pantalla (con `AdminPage` da 1, sin él da 0, medido).
+  Ese arnés no existe hoy en el repo y ninguna convención lo pide.
+- **Pendientes de dar de alta en el backlog** (los da de alta el líder), heredados
+  de las features 24-26 y todos preexistentes: CTA por tarjeta ausente en la sección
+  de precios (exige diseño, copy y destino); **H1** `var(--black)` sin declarar en
+  `Addons.tsx:142,150`; **H2** contraste 2,82:1 en la línea legal del `CTAFinal`,
+  por debajo del 4,5:1 de WCAG AA; **H3** el panel admin desborda a 360 px
+  (`scrollWidth=853` vs `clientWidth=360`).
+- **El flake conocido de tests, sin cambios:** `src/__tests__/AppRoutes.test.tsx >
+  navegar entre páginas del admin no desmonta el sidebar` falla de forma
+  intermitente solo con la máquina cargada (`Unable to find role="heading"`) y
+  aislado pasa. Es un `findBy` que se queda corto esperando un `React.lazy`; si
+  reaparece, el arreglo va en ese test, no en el runner. El test nuevo de esta
+  feature usa el mismo patrón, así que hereda el mismo riesgo.
+- Sigue abierta la deuda de `tsconfig.tsbuildinfo` (trackeado pese a estar en
+  `.gitignore`, y cada `npm run build` lo vuelve a marcar como `M`): requiere un
+  `git rm --cached`, decisión de un humano. `conventions.md` §8: no commitearlo.
+- Deuda ajena confirmada intacta (C10): `ArticlesList.tsx` sin migrar a
+  `normalizeApi`, `App`/`LegalPage`/`NotFound` con import estático, el doble
+  `useReveal`, y el peso del chunk de `three` / `ArticleEdit` (896,69 kB).
