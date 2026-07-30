@@ -210,7 +210,7 @@
       "name": "Vista admin de usuarios (maqueta con datos mock)",
       "status": "pending",
       "priority": "alta",
-      "description": "Maqueta la administracion de usuarios: listado con busqueda, alta, edicion y borrado con confirmacion. Se alimenta de datos mock locales, NO del backend: el backend no tiene ningun endpoint de usuarios (cero rutas, solo la tabla y dos scripts CLI; ver progress/explore_backend_cruds.md §3). Los campos si son fiables porque la tabla existe: id, email, name, role ('admin'|'editor'), created_at. password_hash NUNCA se muestra ni se modela en el front.",
+      "description": "Maqueta la administracion de usuarios: listado con busqueda, alta, edicion y borrado con confirmacion. Se alimenta de datos mock locales, NO del backend: el backend no tiene ningun endpoint de usuarios (cero rutas, solo la tabla y dos scripts CLI; ver progress/explore_backend_cruds.md §3). Los campos si son fiables porque la tabla existe: id, email, name, role ('admin'|'editor'), created_at. password_hash NUNCA se muestra ni se modela en el front. ACTUALIZACION 2026-07-29: el backend ya escribio src/usersRouter.js (sin commitear; avisara con un archivo API_READY.md). Contrato provisional en docs/api-contract.md §10.3: listado {rows} sin paginacion, detalle {user}, columnas id/email/name/role/created_at.",
       "acceptance": [
         "Listado con las columnas email, nombre, rol y fecha de alta, con busqueda por texto y los estados de carga, error y vacio del patron de LeadsList",
         "Alta y edicion en formulario con validacion por campo al estilo de Login.tsx (errors por campo + helperText), no un unico mensaje global",
@@ -218,7 +218,10 @@
         "El rol se elige entre 'admin' y 'editor' unicamente, y el copy explica que editor solo accede a la seccion de blog",
         "Los datos salen de un modulo mock propio del recurso, marcado con TODO(feature-28) y con la forma exacta de la tabla users del backend",
         "No se toca src/lib/api.ts ni se inventa ningun endpoint",
-        "Tests: carga y pinta filas, la busqueda filtra, el formulario valida, y cancelar la confirmacion no borra"
+        "Tests: carga y pinta filas, la busqueda filtra, el formulario valida, y cancelar la confirmacion no borra",
+        "El borrado esta deshabilitado en la fila del usuario en sesion: el backend responde 409 'No puedes eliminar tu propio usuario', asi que la UI no debe ofrecerlo y fallar. El id del usuario en sesion sale de useOutletContext<AdminUser>()",
+        "El copy contempla el 409 'No puedes eliminar al ultimo usuario con rol admin': si solo queda un admin, su borrado se rechaza",
+        "El listado NO pinta paginacion: el endpoint real devuelve {rows} sin total ni limit/offset (a diferencia de leads)"
       ],
       "files": [
         "src/admin/users/UsersList.tsx",
