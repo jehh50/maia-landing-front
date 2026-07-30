@@ -1285,3 +1285,131 @@ por el líder, y una cuarta vez al cerrar la sesión: verde en todas.
 - Deuda ajena confirmada intacta (C10): `ArticlesList.tsx` sin migrar a
   `normalizeApi`, `App`/`LegalPage`/`NotFound` con import estático, el doble
   `useReveal`, y el peso del chunk de `three` / `ArticleEdit` (896,69 kB).
+
+---
+
+## 2026-07-30 — Feature 28: Vista admin de usuarios (maqueta con datos mock)
+
+**Estado final:** done (`APROBADO` en `progress/review_28.md`: los 10 acceptance
+criteria cumplidos, C1-C11 con **solo C7 en rojo**, que era puramente documental y
+se resuelve en este cierre). El reviewer no heredó la verificación de ningún
+informe —**no había informe**— y la rehízo entera, además de acotar el scope con
+`git show --stat dc97090` y de leer el código con el CHECKPOINT delante.
+**Rama / commit:** `feat/admin-cruds` · código en `dc97090` · **4 archivos de
+`src/`** (3 nuevos + la reescritura del anclaje de la feature 27).
+
+**Anomalía de proceso de esta feature — léase antes que nada:** el implementer
+original **cayó por un fallo de sesión** después de commitear y antes de escribir
+`progress/impl_28.md` y antes del veredicto. Consecuencias: (a) `current.md` nunca
+llegó a documentar la 28 (siguió con la plantilla vacía y el baseline de la 27),
+que es exactamente el C7 en rojo; (b) `progress/impl_28.md` **existe pero es una
+reconstrucción a posteriori**, escrita en el cierre por otro agente y marcada como
+tal desde su primera línea — no es el informe del autor y no debe leerse como si
+lo fuera; (c) las decisiones de diseño quedaron sin justificar por quien las tomó,
+y lo que hay es la inferencia del revisor (`review_28.md` §5) y la del cierre
+(`impl_28.md` §4). El trabajo técnico no es imputable por esto: se aprobó por el
+código, no por la narrativa.
+
+**Qué se hizo:**
+
+- **`src/admin/users/mockUsers.ts` (nuevo):** almacén en memoria con `SEED` de 4
+  filas y `resetMockUsers()`. `MockUser extends AdminUser { created_at }` —**tipo
+  derivado, no duplicado**—, así que son exactamente las 5 columnas del contrato
+  (`api-contract.md` §10.3) y `password_hash` no aparece jamás. `MockUsersList`
+  solo tiene `rows`: **no existe el dato para paginar**. `MockResult<T>` imita la
+  unión `ApiSuccess | ApiFailure` (no lanza). `deleteMockUser` reproduce **los dos
+  409 del backend** en la capa de datos, no solo en el copy. Las 5 rutas del
+  contrato están transcritas **como comentario**: ni una URL construida.
+- **`src/admin/users/UsersList.tsx` (reescrito sobre el anclaje de la 27):** tabla
+  email/nombre/rol/alta, búsqueda con debounce 300 ms, estados de carga, vacío y
+  error del patrón `LeadsList`, y `Dialog` de confirmación al estilo
+  `ArticlesList` (sin copiar su bug `if (ok || data == null)`). **Sin
+  `TablePagination`.** El id del usuario en sesión sale de
+  `useOutletContext<AdminUser>()` —**cero ids literales en el archivo**— y apaga el
+  borrado de su propia fila con `Tooltip` explicando el motivo.
+- **`src/admin/users/UserDialog.tsx` (nuevo):** validación **por campo** calcada de
+  `Login.tsx` (`error` + `helperText`, limpieza al teclear), `Alert` global
+  reservado a errores **sin** `field`, y catálogo `ROLES` con solo `admin`/`editor`
+  más el hint «Solo accede a la sección de Blog».
+- **`src/admin/__tests__/UsersList.test.tsx` (nuevo):** 10 tests en el commit
+  original, **12 tras el endurecimiento del cierre**. Monta una `Route` anidada con
+  `<Outlet context={user} />` real (no mockea `useOutletContext`) y **espía
+  `globalThis.fetch` para afirmar `not.toHaveBeenCalled()`**: si alguien cablea un
+  `fetch` a medias, el test se pone rojo.
+- **Cambio hecho en el cierre, no por el autor:** el test de la fila propia se
+  endureció. Antes, `renderUsers(user)` declaraba un parámetro que **ningún test
+  ejercía con un valor distinto del de por defecto**, así que una implementación
+  con `const sessionUserId = 1` hardcodeado habría pasado los 10 tests (era la
+  §4.2 del review). Ahora es un `it.each` sobre **tres sesiones distintas** (`id`
+  1, 2 y 4) que recorre **las cuatro filas del seed** y comprueba que la
+  deshabilitada es la del usuario en sesión y el resto están habilitadas.
+  **Verificado por mutación:** con `sessionUserId = 1` hardcodeado, los casos
+  `id 2` e `id 4` fallan; la mutación se revirtió en el mismo comando y
+  `git status -- src/admin/users/` quedó vacío. **No se tocó comportamiento
+  aprobado: solo el test.**
+
+**Decisiones (inferidas, no declaradas por el autor — ver `impl_28.md` §1 y §4):**
+
+- **Modal `UserDialog.tsx` en lugar de la página `UserEdit.tsx`** que anticipaban
+  el backlog y el manual. Es la decisión más grande y la que menos rastro dejó. Lo
+  único sostenible: una página habría exigido dos rutas nuevas en `AppRoutes.tsx`,
+  y la 27 dejó dicho que las features 28-30 no vuelven a tocar archivos
+  compartidos. **En el cierre se corrigió el campo `files` de la feature 28**
+  (`UserEdit.tsx` → `UserDialog.tsx`) para que el backlog no mienta.
+- **Almacén mutable a nivel de módulo** (`let store`), con el acoplamiento entre
+  tests mitigado por `resetMockUsers()` en `beforeEach`. Aceptable en una maqueta
+  que muere al llegar `API_READY.md`.
+- **`deleteMockUser(id, currentUserId)`** toma un parámetro que el helper real no
+  tendrá (el backend saca el usuario de la cookie): deliberado para simular el 409
+  en local, pero es una línea extra al cablear.
+- **`name: string` con `''`** mientras el contrato tipa `string | null`: deriva de
+  `AdminUser` como pide C5, pero `u.name.toLowerCase()` del filtro reventaría con
+  un `null` real. Hay que blindarlo al cablear.
+- **Asimetrías del mock sin regla en el contrato:** `updateMockUser` descarta el
+  `password` en silencio (choca con el `helperText` «Déjala vacía para conservar
+  la actual») y permite degradar al único `admin` a `editor`, esquivando por
+  `PATCH` la regla que el `DELETE` sí protege. Pregunta para backend, no
+  incumplimiento.
+
+**Verificación (rehecha en el cierre, con mis propios ojos):** baseline
+`npm test` **17 archivos / 106 tests** · exit 0 → tras el endurecimiento,
+`npm test` **17 archivos / 110 tests** · exit 0 · `npm run typecheck` exit 0 ·
+`npm run build` exit 0 (aviso esperado de chunk >500 kB). Aislado,
+`npx vitest run src/admin/__tests__/UsersList.test.tsx` → **12 tests**, exit 0.
+Del delta `106 → 110`, **+2 son de este cierre** (10 → 12 en `UsersList.test.tsx`)
+y **+2 son de la feature 29**, que otro agente implementaba en paralelo durante
+esta sesión: el conteo total no es atribuible solo a la 28.
+
+**Pendiente:**
+
+- **`normalizeApi` no propaga el campo `field` de los errores 422** (hallazgo del
+  review §5.4, **no es deuda de esta feature**): `MockResult` modela
+  `{ ok:false, error, field? }` y `UserDialog.tsx:78-80` marca el campo culpable,
+  pero `ApiFailure` de `src/lib/api.ts` es `{ ok, status, error }`. Por tanto el
+  `TODO(feature-28)` («el resto de la pantalla no debería necesitar cambios») es
+  **optimista**: es el único punto donde el cableado de la API real **no** será
+  mecánico. Ya dado de alta como **feature 31** en `feature_list.json`; aquí solo
+  se enlaza, no se arregla (C10).
+- **Lagunas de cobertura conocidas y aceptadas** (`review_28.md` §4.3, ninguna
+  obligatoria según `verification.md` §5): el estado de error de la lista es
+  inalcanzable desde el listado (`listMockUsers` nunca devuelve `ok:false`), el
+  estado de carga no tiene aserción propia, la rama del último `admin` de
+  `mockUsers.ts:121-123` no tiene test (con el seed actual solo se alcanza
+  degradando a Ana a `editor`, creando otro `admin` y borrándolo) y el copy
+  «editor solo accede a Blog» está en pantalla sin aserción.
+- **Conteos desactualizados en `docs/`, fuera del alcance autorizado de este
+  cierre:** `docs/verification.md` §1-§2 y `docs/architecture.md:252` siguen
+  diciendo `15 archivos / 86 tests`. La 28 lo dejó en 16/96 y hoy el árbol va por
+  17/110 con la 29 en vuelo. Lo señala `review_28.md` §7.2-§7.3; se actualiza
+  cuando cierre la 29, con una sola cifra estable.
+- **La feature 29 estaba en vuelo mientras se cerraba esta**, en otra sesión: su
+  estado, sus archivos y su cierre documental **no se tocaron aquí**.
+- Siguen abiertos, sin cambios, los pendientes heredados de la feature 27:
+  **copy de `AdminHome.tsx`** (`:26-32` ya era falso antes; recomendación de
+  reescribir «Próximos pasos» entero cuando cierren las 28-30, incluida la mención
+  a `node scripts/create-user.js` que esta feature sustituye por UI), el **arnés de
+  suspensión (H2)**, el **flake de `AppRoutes.test.tsx`**, `tsconfig.tsbuildinfo`
+  trackeado (el commit `dc97090` vuelve a arrastrarlo; deuda previa, no imputable
+  a la 28) y los preexistentes **H1-H3** de la feature 24 más el CTA de precios.
+- Deuda ajena confirmada intacta (C10): `ArticlesList.tsx` y `Blog.tsx` sin migrar
+  a `normalizeApi`, y el doble `useReveal`.

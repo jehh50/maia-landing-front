@@ -12,6 +12,23 @@ import type { AdminUser } from '../../lib/api';
 // comprobar que su propio borrado queda deshabilitado.
 const sessionUser: AdminUser = { id: 1, email: 'ana.torres@maia.mx', name: 'Ana Torres', role: 'admin' };
 
+// Emails del seed de `mockUsers`, en el orden en que se pintan.
+const EMAILS_DEL_SEED = [
+  'ana.torres@maia.mx',
+  'bruno.diaz@maia.mx',
+  'carla.mena@maia.mx',
+  'diego.rivas@maia.mx',
+];
+
+// Tres usuarios en sesión distintos (primera fila, fila intermedia y última).
+// Se prueban los tres a propósito: con un solo caso, una implementación que
+// hardcodease el id del usuario en sesión pasaría igual el test.
+const SESIONES: AdminUser[] = [
+  sessionUser,
+  { id: 2, email: 'bruno.diaz@maia.mx', name: 'Bruno Díaz', role: 'editor' },
+  { id: 4, email: 'diego.rivas@maia.mx', name: '', role: 'editor' },
+];
+
 // useOutletContext exige un Outlet padre, así que montamos una Route anidada.
 function renderUsers(user: AdminUser = sessionUser) {
   return render(
@@ -161,11 +178,17 @@ describe('UsersList (maqueta con datos mock)', () => {
     expect(screen.getByText('ana.torres@maia.mx')).toBeInTheDocument();
   });
 
-  it('no ofrece borrar la fila del usuario en sesión', async () => {
-    renderUsers();
+  // El id del usuario en sesión sale de `useOutletContext`, así que la fila
+  // deshabilitada tiene que moverse con él: se comprueba con tres sesiones
+  // distintas y afirmando el estado de las cuatro filas en cada una.
+  it.each(SESIONES)('no ofrece borrar la fila del usuario en sesión (id $id)', async enSesion => {
+    renderUsers(enSesion);
     await screen.findByText('ana.torres@maia.mx');
 
-    expect(screen.getByRole('button', { name: /borrar ana\.torres@maia\.mx/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /borrar bruno\.diaz@maia\.mx/i })).toBeEnabled();
+    for (const email of EMAILS_DEL_SEED) {
+      const boton = screen.getByRole('button', { name: `Borrar ${email}` });
+      if (email === enSesion.email) expect(boton).toBeDisabled();
+      else expect(boton).toBeEnabled();
+    }
   });
 });

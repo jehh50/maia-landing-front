@@ -1,6 +1,6 @@
 {
   "project": "maia-landing-front",
-  "updated_at": "2026-07-29",
+  "updated_at": "2026-07-30",
   "notes": "Backlog vivo. Estados: pending | in_progress | done | blocked. Una feature a la vez, la de menor id entre las pending (ver AGENTS.md §4). Los ids 1-16 corresponden a la construcción original de la app (ya en produccion) y no se re-listan aqui; el backlog abierto arranca en 17.",
   "features": [
     {
@@ -208,7 +208,7 @@
     {
       "id": 28,
       "name": "Vista admin de usuarios (maqueta con datos mock)",
-      "status": "pending",
+      "status": "done",
       "priority": "alta",
       "description": "Maqueta la administracion de usuarios: listado con busqueda, alta, edicion y borrado con confirmacion. Se alimenta de datos mock locales, NO del backend: el backend no tiene ningun endpoint de usuarios (cero rutas, solo la tabla y dos scripts CLI; ver progress/explore_backend_cruds.md §3). Los campos si son fiables porque la tabla existe: id, email, name, role ('admin'|'editor'), created_at. password_hash NUNCA se muestra ni se modela en el front. ACTUALIZACION 2026-07-29: el backend ya escribio src/usersRouter.js (sin commitear; avisara con un archivo API_READY.md). Contrato provisional en docs/api-contract.md §10.3: listado {rows} sin paginacion, detalle {user}, columnas id/email/name/role/created_at.",
       "acceptance": [
@@ -225,7 +225,7 @@
       ],
       "files": [
         "src/admin/users/UsersList.tsx",
-        "src/admin/users/UserEdit.tsx",
+        "src/admin/users/UserDialog.tsx",
         "src/admin/users/mockUsers.ts",
         "src/admin/__tests__/UsersList.test.tsx"
       ],
@@ -264,16 +264,19 @@
       "name": "Vista admin de precios (maqueta con datos mock)",
       "status": "pending",
       "priority": "alta",
-      "description": "Maqueta la administracion de precios y del porcentaje de descuento anual. Es el recurso de mayor riesgo: en el backend NO existe nada (ni tabla, ni modulo, ni router, ni modelo de datos decidido; ver progress/explore_backend_cruds.md §4). Por eso la maqueta se construye sobre la unica especificacion real disponible, que es la interfaz Plan de src/components/sections/Pricing.tsx:6-9, y el mapeo campo a campo queda documentado en docs/api-contract.md para que el backend lo confirme o lo corrija.",
+      "description": "Maqueta la administracion de planes de precios. ACTUALIZACION 2026-07-30: el backend YA commiteo su CRUD (commit f878d0b) y publico API_READY.md, asi que el contrato real SUSTITUYE al mapeo que este backlog proponia antes. Contrato verificado en docs/api-contract.md §10.4. Ojo: los campos van en espanol, la tabla es 'planes', la ruta es /api/admin/precios, el descuento es POR PLAN y los campos precio_anual y ahorro_anual son DERIVADOS de solo lectura. Se sigue maquetando con mock (decision del humano); no se cablea.",
       "acceptance": [
-        "Listado de los cuatro planes con nombre, precio mensual, precio anual, ahorro, plan destacado y trial",
-        "Edicion de un plan, incluidas sus listas de features incluidas y atenuadas",
-        "Control del porcentaje de descuento anual, que hoy esta hard-coded como el Chip 'Ahorra 10%' de Pricing.tsx:56",
-        "El caso Enterprise (precio 0 = 'a convenir') se representa explicitamente, no como un cero suelto",
-        "Los datos salen de un modulo mock propio del recurso, marcado con TODO(feature-30), cuya forma es la interfaz Plan existente",
-        "src/components/sections/Pricing.tsx NO se toca: sigue con su array plans hard-coded. Conectar la landing al backend es una feature futura, especificada en docs/api-contract.md",
-        "No se toca src/lib/api.ts ni se inventa ningun endpoint",
-        "Tests: pinta los cuatro planes, la edicion actualiza la vista y el descuento acepta solo un porcentaje valido"
+        "Listado de planes con nombre, precio mensual, descuento, precio anual y ahorro anual calculados, destacado, trial y orden",
+        "precio_anual y ahorro_anual se MUESTRAN calculados y NO son editables: el backend los deriva de precio_mensual y descuento_pct. Un formulario que los ofrezca como campos editables contradice el modelo",
+        "La aritmetica replica la del backend: precio_anual = round(precio_mensual * (1 - descuento_pct/100)) y ahorro_anual = round((precio_mensual - precio_anual) * 12)",
+        "El descuento es POR PLAN (descuento_pct), no un porcentaje global de la seccion",
+        "Los planes Custom se representan con el booleano es_custom: cuando es true no se pinta ninguna cifra de precio. NO te fies de los nulos: el backend devuelve precio_anual y ahorro_anual en null pero precio_mensual en 0 (ver la discrepancia documentada en docs/api-contract.md §10.4)",
+        "Edicion de las vinetas incluidas (vinetas) y de las tachadas (vinetas_tachadas), que son arrays de strings",
+        "El mock usa los nombres de campo REALES del backend: id, nombre, precio_mensual, descuento_pct, precio_anual, ahorro_anual, vinetas, vinetas_tachadas, destacado, trial_texto, es_custom, orden, created_at, updated_at",
+        "El id se modela como string: el backend devuelve el BIGSERIAL sin castear ('id': '1')",
+        "src/components/sections/Pricing.tsx NO se toca: sigue con su array plans hard-coded. Conectar la landing es una feature futura",
+        "No se toca src/lib/api.ts ni se hace ninguna llamada de red",
+        "Tests: pinta los planes, el derivado se recalcula al cambiar precio o descuento, un plan Custom no muestra cifras, y la edicion de vinetas actualiza la vista"
       ],
       "files": [
         "src/admin/prices/PricesList.tsx",
@@ -284,6 +287,25 @@
       "depends_on": [
         27
       ]
+    },
+    {
+      "id": 31,
+      "name": "normalizeApi propaga el campo 'field' de los errores 422",
+      "status": "pending",
+      "priority": "media",
+      "description": "Hallazgo de la review de la feature 28 (progress/review_28.md). El backend devuelve { error, field } en sus 422 (contact, usuarios, imagenes y previsiblemente precios), pero ApiFailure en src/lib/api.ts solo tiene { ok, status, error }: normalizeApi descarta 'field'. Consecuencia: una pantalla que quiera marcar en rojo el campo culpable no puede hacerlo con el error del backend, solo con su validacion de cliente. Hoy no rompe nada porque las tres vistas nuevas son maquetas con mock, pero convierte el cableado futuro en una reescritura del manejo de errores en vez del cambio mecanico que se busco al maquetar contra el contrato.",
+      "acceptance": [
+        "ApiFailure incluye field?: string, y normalizeApi lo propaga cuando el body del error lo trae",
+        "El cambio es aditivo: ningun consumidor existente de normalizeApi cambia de forma ni se rompe",
+        "Test en src/lib/__tests__/api.test.ts del caso 422 con field y del caso 422 sin field",
+        "docs/api-contract.md documenta la forma actualizada de ApiFailure"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/lib/__tests__/api.test.ts",
+        "docs/api-contract.md"
+      ],
+      "depends_on": []
     }
   ]
 }
