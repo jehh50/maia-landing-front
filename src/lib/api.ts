@@ -49,10 +49,76 @@ export interface AdminUser {
   role: 'admin' | 'editor';
 }
 
-interface ApiResult<T> {
+export interface ApiResult<T> {
   ok: boolean;
   status: number;
   data: T | { error?: string } | null;
+}
+
+// --- Normalización de respuestas (feature 20) ---
+// Los helpers de abajo devuelven { ok, status, data } y nunca lanzan, así que
+// cada consumidor discrimina el éxito a mano con `ok && data && 'rows' in data`.
+// `normalizeApi` hace esa discriminación una sola vez y devuelve una unión
+// discriminada. Es aditivo: ningún helper existente cambia de forma, la
+// migración de consumidores es incremental.
+
+export interface ApiSuccess<T> {
+  ok: true;
+  status: number;
+  data: T;
+}
+
+export interface ApiFailure {
+  ok: false;
+  status: number;   // 0 si la petición ni siquiera obtuvo respuesta (fallo de red)
+  error: string;
+}
+
+export type ApiOutcome<T> = ApiSuccess<T> | ApiFailure;
+
+export const GENERIC_API_ERROR = 'No pudimos completar la solicitud. Inténtalo de nuevo.';
+
+function readErrorMessage(data: unknown): string | null {
+  if (data && typeof data === 'object' && 'error' in data) {
+    const { error } = data as { error?: unknown };
+    if (typeof error === 'string' && error.trim()) return error;
+  }
+  return null;
+}
+
+/**
+ * Normaliza el resultado de cualquier helper de este módulo a
+ * `{ ok: true, status, data } | { ok: false, status, error }`.
+ *
+ * `key` es la clave que el payload de éxito debe contener (`'rows'`,
+ * `'article'`, `'user'`…): es la misma comprobación que hoy hace cada
+ * consumidor con `'rows' in data`, hecha una sola vez y con tipos.
+ *
+ * Casos:
+ * - `2xx` con body que contiene `key` → `{ ok: true, data }`.
+ * - `2xx` sin body (o sin `key`)     → `{ ok: false, error }`, igual que hoy.
+ * - `4xx`/`5xx` con `{ error }`      → `{ ok: false, error }` con ese mensaje.
+ * - `4xx`/`5xx` sin body             → `{ ok: false, error: fallbackError }`.
+ * - Fallo de red (fetch rechaza)     → `{ ok: false, status: 0, error: fallbackError }`.
+ *
+ * Nunca lanza (ver `docs/context.md` §3).
+ */
+export async function normalizeApi<T extends object, K extends keyof T & string>(
+  call: Promise<ApiResult<T>>,
+  key: K,
+  fallbackError: string = GENERIC_API_ERROR,
+): Promise<ApiOutcome<T>> {
+  let result: ApiResult<T>;
+  try {
+    result = await call;
+  } catch {
+    return { ok: false, status: 0, error: fallbackError };
+  }
+  const { ok, status, data } = result;
+  if (ok && data && typeof data === 'object' && key in data) {
+    return { ok: true, status, data: data as T };
+  }
+  return { ok: false, status, error: readErrorMessage(data) ?? fallbackError };
 }
 
 async function apiJson<T>(path: string, init: RequestInit = {}): Promise<ApiResult<T>> {
