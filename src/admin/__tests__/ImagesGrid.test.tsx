@@ -213,6 +213,43 @@ describe('ImagesGrid (maqueta con datos mock)', () => {
     expect(screen.getByText('hero.png')).toBeInTheDocument();
   });
 
+  it('muestra el estado vacío cuando la sección se queda sin imágenes', async () => {
+    const user = userEvent.setup();
+    renderImages();
+    await screen.findByText('maia.png');
+
+    // Ninguna de las dos secciones arranca vacía: el estado vacío aún no se ve.
+    expect(screen.queryByText('Sin imágenes en esta sección.')).not.toBeInTheDocument();
+
+    // maia.png (id 4) es la única imagen de «CTA final»: al borrarla, la sección queda a cero.
+    await user.click(screen.getByRole('button', { name: 'Borrar maia.png' }));
+    await user.click(await screen.findByRole('button', { name: 'Borrar' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('maia.png')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Sin imágenes en esta sección.')).toBeInTheDocument();
+    // El vacío es por sección, no global: Hero conserva las suyas.
+    expect(screen.getByText('hero.png')).toBeInTheDocument();
+  });
+
+  it('exige elegir sección al subir cuando el filtro sigue en «Todas»', async () => {
+    const user = userEvent.setup();
+    renderImages();
+    await screen.findByText('hero.png');
+
+    // Sin tocar el filtro: arranca en «Todas», así que el diálogo abre sin sección
+    // preseleccionada y el envío debe frenarse igual que el 422 del backend.
+    await user.click(screen.getByRole('button', { name: 'Subir imagen' }));
+    await user.upload(await screen.findByLabelText('Archivo de imagen'), pngFile());
+    await user.click(screen.getByRole('button', { name: 'Subir' }));
+
+    expect(await screen.findByText('seccion requerida')).toBeInTheDocument();
+    expect(screen.queryByText('nueva-foto.png')).not.toBeInTheDocument();
+    // El diálogo sigue abierto: no se ha subido nada.
+    expect(screen.getByRole('button', { name: 'Subir' })).toBeInTheDocument();
+  });
+
   it('un editor ve la galería pero no las acciones de escritura, reservadas al rol admin', async () => {
     renderImages(editorUser);
     await screen.findByText('hero.png');

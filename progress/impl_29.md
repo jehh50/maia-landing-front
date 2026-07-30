@@ -163,3 +163,106 @@ Modificado/creado exactamente lo autorizado:
 Sin commits, sin push, sin residuos: ni `console.log`, ni archivos temporales, ni `TODO` sin
 `TODO(feature-29)`. **Falta el veredicto del `reviewer`**; hasta entonces la feature 29 no se
 marca `done`.
+
+---
+
+# Ronda 2 — corrección del rechazo (`progress/review_29.md`, C2)
+
+Fecha: 2026-07-30. El `reviewer` dio `CHANGES_REQUESTED` **solo** por C2: dos cláusulas del
+`acceptance` sin ningún test. No pidió tocar código de producción («el código de producción
+está bien como está», §10). No lo he tocado.
+
+## R2.1 Qué añadí
+
+Dos tests en `src/admin/__tests__/ImagesGrid.test.tsx`, y **ningún otro archivo de código**.
+El archivo pasa de **10 a 12 tests**.
+
+1. **`muestra el estado vacío cuando la sección se queda sin imágenes`** — cubre el acceptance 1
+   (`ImagesGrid.tsx:288-291`). Afirma primero que «Sin imágenes en esta sección.» **no** está
+   al cargar (ninguna de las dos secciones arranca vacía), borra `maia.png` (id 4, la única de
+   `cta_final`) por el flujo real de UI —`IconButton` `Borrar maia.png` → confirmación `Borrar`—
+   y afirma que el texto aparece. Cierra con `hero.png` presente, para fijar que el vacío es
+   **por sección** y no un vacío global. Sigue el precedente de la feature hermana
+   (`UsersList.test.tsx:71`), como pedía la review §3.1.
+
+2. **`exige elegir sección al subir cuando el filtro sigue en «Todas»`** — cubre el acceptance 2
+   (`ImageUploadDialog.tsx:82`). Reproduce el flujo **por defecto** que señala la review §3.2:
+   sin tocar el filtro (`filtro === ''` → `seccionInicial=''` → `seccion=''`), abre «Subir
+   imagen», carga un PNG válido y pulsa «Subir». Afirma el mensaje literal del backend
+   `seccion requerida`, que `nueva-foto.png` no llega a la galería, y que el diálogo sigue
+   abierto (el botón «Subir» continúa en el DOM), o sea que el envío se frenó de verdad.
+
+Convenciones respetadas (`docs/verification.md` §4, `explore_admin_patterns.md` §6): reusan el
+helper `renderImages()` con `ThemeProvider` + tema real de `src/theme/theme.ts`, `userEvent.setup()`,
+consultas por rol accesible (`getByRole('button', { name: … })`, `findByLabelText`), y el
+`resetMockImages()` de `beforeEach` + `vi.restoreAllMocks()` de `afterEach` ya existentes. Ninguno
+de los dos toca `fetch` más allá del espía global que ya estaba.
+
+No añadí la aserción opcional de `maxLength=300` del alt: la review la marca explícitamente como
+no bloqueante y el encargo era «corrige exactamente lo que motivó el rechazo, nada más».
+
+## R2.2 Prueba de que los tests son honestos (mutación + reversión)
+
+Copié los dos archivos de producción a un scratchpad con su `md5sum`, mutéé las dos ramas que
+cubren los tests nuevos y corrí el archivo de test:
+
+| Mutación | Archivo |
+|----------|---------|
+| `{imagenes.length === 0 ? (` → `{false ? (` | `src/admin/images/ImagesGrid.tsx:288` |
+| `if (!seccion) next.seccion = …` → `if (false && !seccion) next.seccion = …` | `src/admin/images/ImageUploadDialog.tsx:82` |
+
+Resultado de `npx vitest run src/admin/__tests__/ImagesGrid.test.tsx` **con las mutaciones**:
+
+```
+   ✓ … cancelar la confirmación no borra la imagen
+   × ImagesGrid (maqueta con datos mock) > muestra el estado vacío cuando la sección se queda sin imágenes
+   × ImagesGrid (maqueta con datos mock) > exige elegir sección al subir cuando el filtro sigue en «Todas»
+ Test Files  1 failed (1)
+      Tests  2 failed | 10 passed (12)
+```
+
+**Los dos caen, y solo los dos**: los 10 tests previos siguen verdes con las mutaciones puestas,
+lo que confirma que cada test nuevo aporta cobertura que antes no existía en ningún otro sitio.
+
+Nota sobre la segunda mutación: neutralizar la línea 82 no deja pasar la subida, porque la guarda
+de estrechamiento de tipos de la línea 90 (`if (!file || !seccion || …) return;`) sigue frenando
+el envío. El fallo se produce igualmente porque desaparece el **mensaje** `seccion requerida`, que
+es justo la cláusula del acceptance («`seccion` obligatoria») y lo que el usuario necesita ver.
+
+**Reversión verificada**, no dada por hecha: restauré desde la copia y comprobé
+`md5sum -c` (`e8c7c312… ImagesGrid.tsx`, `d4ea36c2… ImageUploadDialog.tsx`, ambos «La suma
+coincide») más `git status --porcelain src/admin/images/` → **salida vacía**. El código de
+producción de la feature está byte a byte como lo revisó el `reviewer`.
+
+## R2.3 Verificación final (bloque completo)
+
+`npm test && npm run typecheck && npm run build` — los tres en **exit 0**:
+
+```
+ Test Files  17 passed (17)
+      Tests  110 passed (110)
+   Duration  72.44s
+
+> tsc -b --noEmit          → exit 0
+
+dist/assets/ImagesGrid-DTAz6RrB.js    15.26 kB │ gzip:  5.69 kB
+dist/assets/index-DNjfDwwz.js      1,587.15 kB │ gzip: 451.34 kB
+(!) Some chunks are larger than 500 kB after minification.   ← aviso esperado, no es fallo
+✓ built in 23.09s
+```
+
+**Conteo antes/después, con la atribución exacta:**
+
+| Momento | Archivos | Tests |
+|---------|----------|-------|
+| Baseline de esta sesión (árbol limpio) | 17 | 106 |
+| Después de mis dos tests | 17 | **110** |
+
+El salto es de **+4**, no de +2, y no todo es mío: **+2 son míos** (`ImagesGrid.test.tsx` 10 → 12,
+medido en aislado con `npx vitest run src/admin/__tests__/ImagesGrid.test.tsx` → 12 passed) y
+**+2 vienen de `src/admin/__tests__/UsersList.test.tsx`**, que otro agente está modificando en
+paralelo en la misma copia de trabajo (`git diff --stat` lo confirma: `UsersList.test.tsx` +31/-4).
+No he tocado ese archivo. Lo dejo escrito para que el conteo no se lea como una discrepancia.
+
+Nada de infra tocada. Sin commits, sin push. La feature sigue **sin** marcarse `done`: espera
+segundo veredicto del `reviewer`.
