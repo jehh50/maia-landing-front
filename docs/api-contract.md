@@ -448,40 +448,93 @@ poder eliminar publicaciones, pero hoy `DELETE /api/admin/articles/:id` sigue
 exigiendo `admin` (ver §5). Cuando el backend lo relaje, empezará a funcionar sin
 cambios en el front. **No conviene ocultar ese botón por rol de forma permanente.**
 
-### 10.4 Precios — propuesta del front, pendiente de confirmación
+### 10.4 Precios — contrato REAL (commit `f878d0b` del backend, 2026-07-30)
 
-**En el backend no existe nada**: ni tabla, ni módulo, ni router, ni decisión sobre
-el modelo de datos. Su `feature_list.json` tiene una sola línea de descripción, sin
-`acceptance` y sin `contexto_front`.
+> **Esta sección sustituye por completo al mapeo que este documento proponía
+> antes.** Aquella propuesta se escribió cuando en el backend no existía nada de
+> precios; el backend ya commiteó su CRUD y **su modelo difiere del propuesto en
+> puntos de fondo**. Lo que sigue está leído de la fuente, no inferido.
+>
+> Sigue **sin** existir `API_READY.md`, así que el backend aún no lo da por
+> cerrado.
 
-Por eso la maqueta (feature 30) se construye sobre la **única especificación real
-disponible**: la interfaz `Plan` de `src/components/sections/Pricing.tsx:6-9`, que
-lleva en producción y describe exactamente lo que la landing necesita.
+**Errores de la propuesta anterior, para que nadie los reintroduzca:**
 
-**Mapeo propuesto** — es lo que hay que enseñarle al backend para que lo confirme o
-lo corrija:
+| Se propuso | La realidad |
+|---|---|
+| Campos en inglés (`name`, `monthly`, `annual`) | **Campos en español**: `nombre`, `precio_mensual`, `precio_anual` |
+| Ruta `/api/admin/prices` | **`/api/admin/precios`**, y la pública `/api/precios` |
+| `discount_pct` **global** para toda la sección | **`descuento_pct` es POR PLAN** |
+| `annual` y `saving` **almacenados** | **`precio_anual` y `ahorro_anual` son DERIVADOS**, no se guardan ni se envían |
+| `Enterprise` como `monthly: 0` = «a convenir» | **`es_custom: boolean`**, un campo propio |
+| `features` / `dim` como `string[]` sueltos | **`vinetas` / `vinetas_tachadas`, columnas `JSONB`** |
 
-| Campo del front (`Plan`) | Tipo | Campo propuesto en la API | Notas |
+| Método | Ruta | Auth | Respuesta OK |
 |---|---|---|---|
-| `name` | string | `name` | `Starter`, `Team`, `Growth`, `Enterprise` |
-| `monthly` | number | `monthly` | `0` = «a convenir» (caso `Enterprise`) |
-| `annual` | number | `annual` | precio ya con descuento aplicado |
-| `saving` | string | `saving` | hoy texto libre: `'Ahorras $24/año'` |
-| `features` | string[] | `features` | incluidas |
-| `dim` | string[] | `dim` | atenuadas / no incluidas |
-| `featured` | boolean? | `featured` | hoy solo `Team` |
-| `trial` | string? | `trial` | |
-| — | number | `discount_pct` | **global, no por plan**: hoy es el `Chip` «Ahorra 10%» hard-coded en `Pricing.tsx:56` |
+| `GET` | `/api/precios` | pública | `200 { rows }` |
+| `GET` | `/api/admin/precios/:id` | cookie + admin | `200 { plan }` |
+| `POST` | `/api/admin/precios` | cookie + admin | `201 { plan }` |
+| `PATCH` | `/api/admin/precios/:id` | cookie + admin | `200 { plan }` |
+| `DELETE` | `/api/admin/precios/:id` | cookie + admin | `204` |
 
-**Decisiones que el backend aún debe tomar** y que conviene no dar por hechas:
-si el descuento es global o por plan; si habrá campo de moneda (hoy el `$` está
-implícito en los strings); cómo se modelan `features`/`dim` (tabla hija, `TEXT[]` o
-`JSONB` — ese backend **no usa `JSONB` en ninguna tabla** hoy); y cómo se representa
-el caso `Enterprise` sin que un `0` se lea como gratis.
+**Objeto `plan`** (`toPlan()`, `src/precios.js:91-116`) — 14 campos:
 
-**Conectar la landing al backend es una feature futura, no parte de la 30.**
-`Pricing.tsx` sigue con su array `plans` hard-coded. Cuando se haga, el trabajo es:
-sustituir el array por una llamada con `normalizeApi`, decidir el estado de carga de
-una sección que hoy es instantánea, y decidir el *fallback* si la API falla — una
-landing de captación **no puede quedarse sin precios** porque el backend duerma
-(corre en Render plan free y se duerme por inactividad).
+```
+id, nombre, precio_mensual, descuento_pct, precio_anual, ahorro_anual,
+vinetas, vinetas_tachadas, destacado, trial_texto, es_custom, orden,
+created_at, updated_at
+```
+
+**Los dos campos derivados, y su aritmética exacta** (`src/precios.js:54-70`):
+
+- `precio_anual = Math.round(precio_mensual * (1 - descuento_pct / 100))`.
+  **Es el precio mensual facturando anualmente, no el total del año.**
+- `ahorro_anual = Math.round((precio_mensual - precio_anual) * 12)`.
+- **Si `es_custom` es `true`, ambos son `null`.** Ese es el caso `Enterprise`.
+
+> ⚠️ **Discrepancia entre `API_READY.md` y el código del backend, verificada en la
+> fuente el 2026-07-30.** El handoff dice que en un plan Custom vienen en `null`
+> **tres** campos: `precio_mensual`, `precio_anual` y `ahorro_anual`. El código
+> solo anula **dos**: `src/precios.js:97-98` pone a `null` `precio_anual` y
+> `ahorro_anual`, mientras `precio_mensual` pasa por `toNumber()`
+> (`src/precios.js:48-51`), que convierte `null` en **`0`**. El propio comentario
+> del código (línea 85) dice «los dos».
+>
+> **Consecuencia práctica:** si la UI se fía del handoff y espera `null` en
+> `precio_mensual`, un plan Custom pintará **«$0»** — justo lo que el handoff dice
+> querer evitar («para que no se renderice "Ahorras $0/año"»).
+> **Regla segura para el front: no te fíes de los nulos, comprueba `es_custom`
+> antes de pintar cualquier cifra.** Es además lo que el propio handoff recomienda.
+
+**Otros datos que solo están en `API_READY.md`:**
+
+- **El `id` de un plan llega como string** (`"id": "1"`), no como número — es el
+  `BIGSERIAL` de Postgres sin castear. Lo mismo cabe esperar de imágenes.
+- Los **precios sí llegan como `number`** (`19`, no `"19.00"`): el backend
+  convierte los `NUMERIC` antes de responder.
+- **Las tablas están creadas pero VACÍAS y no hay seed.** `GET /api/precios` y
+  `GET /api/images` responden `200 { "rows": [] }`. Los datos se cargan desde el
+  panel de administración. Conectar la landing hoy dejaría la sección de precios y
+  el carrusel del Hero **en blanco**.
+- El servidor local es el **:3002** (no el 3001 que dice la doc del backend).
+- **El rol `editor` ya puede eliminar publicaciones**: la relajación de permisos
+  que estaba aprobada pero sin aplicar (ver §10.3) ya está en el backend.
+
+Reproduce la aritmética que la landing ya muestra: `(19 − 17) × 12 = 24`, el
+«Ahorras $24/año» de `Pricing.tsx`. El `Math.round()` es decisión deliberada del
+backend.
+
+**Consecuencia directa para la UI del admin:** `precio_anual` y `ahorro_anual`
+**no se editan**. Se editan `precio_mensual` y `descuento_pct`, y los otros dos se
+muestran calculados. Un formulario que los ofrezca como campos editables está
+contradiciendo el modelo.
+
+**Errores:** `422 { error, field }` en validación, `404` no encontrado, `500`. El
+`field` refuerza la necesidad de la **feature 31** (`normalizeApi` hoy lo descarta).
+
+**Guardar la relación con la landing:** `src/components/sections/Pricing.tsx` sigue
+con su array `plans` hard-coded y **no se toca**. Conectarla es una feature futura;
+el mapeo contra el contrato real sería `nombre → name`, `precio_mensual → monthly`,
+`precio_anual → annual`, `ahorro_anual → saving` (hoy un string libre en el front),
+`vinetas → features`, `vinetas_tachadas → dim`, `destacado → featured`,
+`trial_texto → trial`, y `es_custom` como el caso sin precio.
