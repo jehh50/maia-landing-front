@@ -8,7 +8,7 @@ const items = [
 
 export default function Testimonials() {
   return (
-    <Box component="section" id="testimonials" sx={{ py: { xs: 7, md: 10 }, background: 'linear-gradient(180deg, var(--bg-soft) 0%, #FFFFFF 30%, #FFFFFF 70%, var(--bg-soft) 100%)' }}>
+    <Box component="section" id="testimonials" sx={{ py: { xs: 7, md: 10 }, background: 'linear-gradient(180deg, var(--bg-soft) 0%, var(--bg) 30%, var(--bg) 70%, var(--bg-soft) 100%)' }}>
       <Container>
         <Box className="reveal" sx={{ textAlign: 'center', maxWidth: 680, mx: 'auto', mb: 6 }}>
           <Typography variant="overline" color="primary" fontWeight={600}>Casos de éxito</Typography>
@@ -18,7 +18,7 @@ export default function Testimonials() {
           {items.map(t => (
             <Grid item xs={12} md={4} key={t.a}>
               <Box className="reveal" sx={{
-                p: 4, height: '100%', borderRadius: 3, background: '#fff',
+                p: 4, height: '100%', borderRadius: 3, bgcolor: 'background.paper',
                 border: '1px solid var(--border)',
               }}>
                 <Typography sx={{ fontSize: 16, color: 'text.primary', mb: 3, lineHeight: 1.6 }}>{t.q}</Typography>

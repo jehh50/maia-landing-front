@@ -80,7 +80,7 @@ export default function Navbar({ onOpenContact }: NavbarProps) {
       {mobile && open && (
         <Box sx={{
           position: 'fixed', inset: 0, zIndex: 1300,
-          background: '#fff', display: 'flex', flexDirection: 'column',
+          bgcolor: 'background.paper', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 3,
         }}>
           <IconButton onClick={() => setOpen(false)} sx={{ position: 'absolute', top: 16, right: 16 }} aria-label="Cerrar">

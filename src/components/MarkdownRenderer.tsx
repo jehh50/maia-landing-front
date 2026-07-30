@@ -51,7 +51,7 @@ function VideoEmbed({ src, title }: { src: string; title?: string }) {
         borderRadius: 2,
         overflow: 'hidden',
         border: '1px solid var(--border)',
-        background: '#000',
+        bgcolor: 'common.black',
       }}
     >
       <Box
@@ -119,7 +119,7 @@ function getMarkdownSx(compact: boolean): SxProps<Theme> {
       fontStyle: 'italic',
     },
     '& code': {
-      background: '#FAFAF9',
+      background: 'var(--bg-soft)',
       border: '1px solid var(--border)',
       borderRadius: 1,
       px: 0.75,
@@ -128,7 +128,7 @@ function getMarkdownSx(compact: boolean): SxProps<Theme> {
       fontSize: '0.9em',
     },
     '& pre': {
-      background: '#FAFAF9',
+      background: 'var(--bg-soft)',
       border: '1px solid var(--border)',
       borderRadius: 2,
       p: 2,

@@ -1,23 +1,9 @@
-:root {
-  --orange: #E8440A;
-  --orange-h: #D03A08;
-  --orange-l: #FF6B35;
-  --orange-xl: #FFF0EB;
-  --orange-xxl: #FFF8F5;
-  --bg: #FFFFFF;
-  --bg-soft: #FAFAF9;
-  --bg-strong: #252525;
-  --surface: #FFFFFF;
-  --surface2: #FFF5F1;
-  --border: #F0EBE8;
-  --border2: #E5DDD9;
-  --text: #1A1410;
-  --text2: #4A3F3A;
-  --muted: #7A6E6A;
-  --muted2: #A89E9A;
-  --green: #16A34A;
-  --green-l: #DCFCE7;
-}
+/*
+ * Este archivo NO define colores. Las variables que usa (--orange, --border,
+ * --bg-soft, --text…) se declaran en :root desde src/theme/tokens.ts, que es la
+ * única fuente de verdad, y las inyecta <CssBaseline /> al montar la app
+ * (theme.components.MuiCssBaseline.styleOverrides). Ver docs/architecture.md §6.
+ */
 
 *,
 *::before,

@@ -57,7 +57,7 @@ export default function BlogArticle() {
         sx={{
           py: 2,
           borderBottom: '1px solid var(--border)',
-          background: '#fff',
+          bgcolor: 'background.paper',
           position: 'sticky',
           top: 0,
           zIndex: 10,

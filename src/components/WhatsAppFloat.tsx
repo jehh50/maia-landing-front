@@ -1,5 +1,6 @@
 import { Box } from '@mui/material';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import { tokens } from '../theme/tokens';
 
 export default function WhatsAppFloat() {
   return (
@@ -12,9 +13,9 @@ export default function WhatsAppFloat() {
       sx={{
         position: 'fixed', bottom: 32, right: 32, zIndex: 100,
         width: 70, height: 70, borderRadius: '50%',
-        bgcolor: '#25D366', color: '#fff',
+        bgcolor: tokens.external.whatsapp, color: 'common.white',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 16px #075E54',
+        boxShadow: `0 4px 16px ${tokens.external.whatsappShadow}`,
         textDecoration: 'none', transition: 'transform 0.2s',
         '&:hover': { transform: 'scale(1.08)' },
       }}

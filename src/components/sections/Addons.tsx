@@ -4,6 +4,7 @@ import Inventory2Icon from '@mui/icons-material/Inventory2';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import { SvgIconComponent } from '@mui/icons-material';
+import { tokens } from '../../theme/tokens';
 
 interface Pack { label: string; description: string; price: string; }
 interface Addon {
@@ -21,7 +22,7 @@ const addons: Addon[] = [
     Icon: BoltIcon,
     name: 'Créditos adicionales',
     desc: 'Amplía tu consumo mensual sin cambiar de plan. Pagas solo por lo que usas.',
-    accent: '#b90f0f',
+    accent: tokens.accent.red,
     price: '$0.20',
     unit: '/ crédito',
   },
@@ -29,7 +30,7 @@ const addons: Addon[] = [
     Icon: Inventory2Icon,
     name: 'Packs de créditos',
     desc: 'Compra créditos por adelantado y ahorra frente al precio unitario.',
-    accent: '#7C3AED',
+    accent: tokens.accent.violet,
     packs: [
       { label: 'Pack S', description: '500 créditos', price: '$90' },
       { label: 'Pack M', description: ' 1.000 créditos', price: '$160' },
@@ -40,7 +41,7 @@ const addons: Addon[] = [
     Icon: PsychologyIcon,
     name: 'Cerebro Extendido',
     desc: 'Amplía la base de conocimiento de tus agentes con más capacidad de almacenamiento.',
-    accent: '#0369A1',
+    accent: tokens.accent.blue,
     price: '$60',
     unit: '/ GB adicional',
   },
@@ -48,7 +49,7 @@ const addons: Addon[] = [
     Icon: AccountTreeIcon,
     name: 'Workflows adicionales',
     desc: 'Suma automatizaciones avanzadas para que tus agentes ejecuten más procesos.',
-    accent: '#16A34A',
+    accent: tokens.brand.green,
     price: '$190',
     unit: '/ mes',
   },
@@ -87,7 +88,7 @@ export default function Addons() {
                 flexDirection: 'column',
                 p: 3.5,
                 borderRadius: 1,
-                background: '#fff',
+                bgcolor: 'background.paper',
                 border: '1px solid var(--border)',
                 borderTop: '3px solid transparent',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.04)',

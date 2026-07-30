@@ -93,7 +93,7 @@ export default function Hero({ onOpenContact }: HeroProps) {
       <Box ref={vantaRef} sx={{ position: 'absolute', inset: 0, zIndex: 0 }} />
       <Box sx={{
         position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none',
-        background: 'linear-gradient(180deg, transparent 40%, #FFFFFF 100%)',
+        background: 'linear-gradient(180deg, transparent 40%, var(--bg) 100%)',
       }} />
 
       <Container sx={{ position: 'relative', zIndex: 2 }}>
@@ -162,7 +162,7 @@ export default function Hero({ onOpenContact }: HeroProps) {
             boxShadow: '0 12px 40px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04)',
             border: '1px solid var(--border)',
             aspectRatio: '1381 / 677',
-            background: '#FAFAF9',
+            bgcolor: 'surface.soft',
             lineHeight: 0,
             '&:hover .hero-arrow': { opacity: 1 },
           }}
@@ -194,7 +194,7 @@ export default function Hero({ onOpenContact }: HeroProps) {
               position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)',
               bgcolor: 'rgba(255,255,255,0.85)', color: 'var(--text)',
               opacity: { xs: 1, md: 0 }, transition: 'opacity 0.2s ease',
-              '&:hover': { bgcolor: '#fff' },
+              '&:hover': { bgcolor: 'common.white' },
             }}
           >
             <KeyboardArrowLeftIcon />
@@ -207,7 +207,7 @@ export default function Hero({ onOpenContact }: HeroProps) {
               position: 'absolute', top: '50%', right: 8, transform: 'translateY(-50%)',
               bgcolor: 'rgba(255,255,255,0.85)', color: 'var(--text)',
               opacity: { xs: 1, md: 0 }, transition: 'opacity 0.2s ease',
-              '&:hover': { bgcolor: '#fff' },
+              '&:hover': { bgcolor: 'common.white' },
             }}
           >
             <KeyboardArrowRightIcon />

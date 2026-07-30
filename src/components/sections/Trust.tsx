@@ -9,7 +9,7 @@ const companies = [
 
 export default function Trust() {
   return (
-    <Box component="section" id="trust" sx={{ py: { xs: 5, md: 6 }, background: '#fff', borderBottom: '1px solid var(--border)' }}>
+    <Box component="section" id="trust" sx={{ py: { xs: 5, md: 6 }, bgcolor: 'background.paper', borderBottom: '1px solid var(--border)' }}>
       <Container>
         <Typography
           variant="caption"

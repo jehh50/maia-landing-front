@@ -3,6 +3,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import type { AdminLead } from '../../lib/api';
+import { tokens } from '../../theme/tokens';
 
 interface Props {
   open: boolean;
@@ -14,7 +15,7 @@ const Field = ({ label, value, children }: { label: string; value?: string; chil
   <Box>
     <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 11, fontWeight: 600 }}>{label}</Typography>
     <Box sx={{ fontSize: 14, color: 'text.primary', mt: 0.25 }}>
-      {children ?? value ?? <em style={{ color: '#A89E9A' }}>—</em>}
+      {children ?? value ?? <em style={{ color: tokens.text.disabled }}>—</em>}
     </Box>
   </Box>
 );
@@ -48,14 +49,14 @@ export default function LeadDetailDialog({ open, lead, onClose }: Props) {
             <Field label="Teléfono">
               {waLink
                 ? <Link href={waLink} target="_blank" rel="noopener">{lead.telefono}</Link>
-                : lead.telefono || <em style={{ color: '#A89E9A' }}>—</em>}
+                : lead.telefono || <em style={{ color: tokens.text.disabled }}>—</em>}
             </Field>
             <Field label="Fecha" value={new Date(lead.created_at).toLocaleString('es-MX')} />
             <Field label="ID" value={String(lead.id)} />
           </Box>
           <Field label="Comentarios">
             <Box sx={{ whiteSpace: 'pre-wrap', fontSize: 14, mt: 0.5 }}>
-              {lead.mensaje || <em style={{ color: '#A89E9A' }}>(sin comentarios)</em>}
+              {lead.mensaje || <em style={{ color: tokens.text.disabled }}>(sin comentarios)</em>}
             </Box>
           </Field>
         </Stack>

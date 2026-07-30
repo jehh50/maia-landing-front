@@ -35,7 +35,7 @@ export function BlogCard({ article }: { article: PublicArticle }) {
         height: '100%',
         borderRadius: 3,
         overflow: 'hidden',
-        background: '#fff',
+        bgcolor: 'background.paper',
         border: '1px solid var(--border)',
         transition: 'all 0.2s',
         '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 12px 40px rgba(0,0,0,0.08)' },
@@ -53,7 +53,7 @@ export function BlogCard({ article }: { article: PublicArticle }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#fff',
+          color: 'common.white',
           fontWeight: 800,
           fontSize: 64,
         }}

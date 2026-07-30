@@ -1,4 +1,5 @@
-import { createTheme } from '@mui/material/styles';
+import { alpha, createTheme } from '@mui/material/styles';
+import { cssVariables, tokens } from './tokens';
 
 declare module '@mui/material/styles' {
   interface Palette {
@@ -8,6 +9,7 @@ declare module '@mui/material/styles' {
       orangeLight: string;
       orangeXL: string;
       orangeXXL: string;
+      orangeXXXL: string;
       green: string;
       greenLight: string;
     };
@@ -27,46 +29,38 @@ export const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#E8440A',
-      dark: '#D03A08',
-      light: '#FF6B35',
-      contrastText: '#FFFFFF',
+      main: tokens.brand.orange,
+      dark: tokens.brand.orangeHover,
+      light: tokens.brand.orangeLight,
+      contrastText: tokens.text.onBrand,
     },
     secondary: {
-      main: '#1A1410',
+      main: tokens.text.primary,
     },
     background: {
-      default: '#FFFFFF',
-      paper: '#FFFFFF',
+      default: tokens.surface.main,
+      paper: tokens.surface.main,
     },
     text: {
-      primary: '#1A1410',
-      secondary: '#4A3F3A',
-      disabled: '#A89E9A',
+      primary: tokens.text.primary,
+      secondary: tokens.text.secondary,
+      disabled: tokens.text.disabled,
     },
     success: {
-      main: '#16A34A',
-      light: '#DCFCE7',
-      dark: '#14532D',
+      main: tokens.feedback.successMain,
+      light: tokens.feedback.successLight,
+      dark: tokens.feedback.successDark,
     },
     error: {
-      main: '#DC2626',
-      light: '#FEE2E2',
+      main: tokens.feedback.errorMain,
+      light: tokens.feedback.errorLight,
     },
-    divider: '#F0EBE8',
-    brand: {
-      orange: '#E8440A',
-      orangeHover: '#D03A08',
-      orangeLight: '#FF6B35',
-      orangeXL: '#FFF0EB',
-      orangeXXL: '#FFF8F5',
-      green: '#16A34A',
-      greenLight: '#DCFCE7',
-    },
+    divider: tokens.border.main,
+    brand: { ...tokens.brand },
     surface: {
-      main: '#FFFFFF',
-      soft: '#FAFAF9',
-      tint: '#FFF5F1',
+      main: tokens.surface.main,
+      soft: tokens.surface.soft,
+      tint: tokens.surface.tint,
     },
   },
   typography: {
@@ -88,6 +82,13 @@ export const theme = createTheme({
     ...Array(21).fill('0 12px 40px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04)'),
   ] as never,
   components: {
+    // Capa CSS: las variables de `globals.css` se emiten aquí, derivadas de los
+    // mismos tokens que la paleta de arriba (ver src/theme/tokens.ts).
+    MuiCssBaseline: {
+      styleOverrides: {
+        ':root': cssVariables,
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
@@ -97,18 +98,18 @@ export const theme = createTheme({
           fontWeight: 600,
         },
         containedPrimary: {
-          boxShadow: '0 4px 16px rgba(232,68,10,0.25)',
+          boxShadow: `0 4px 16px ${alpha(tokens.brand.orange, 0.25)}`,
           '&:hover': {
-            boxShadow: '0 6px 20px rgba(232,68,10,0.35)',
-            backgroundColor: '#D03A08',
+            boxShadow: `0 6px 20px ${alpha(tokens.brand.orange, 0.35)}`,
+            backgroundColor: tokens.brand.orangeHover,
           },
         },
         outlined: {
-          borderColor: '#E5DDD9',
-          color: '#1A1410',
+          borderColor: tokens.border.strong,
+          color: tokens.text.primary,
           '&:hover': {
-            borderColor: '#E8440A',
-            backgroundColor: '#FFF8F5',
+            borderColor: tokens.brand.orange,
+            backgroundColor: tokens.brand.orangeXXL,
           },
         },
         sizeLarge: { padding: '14px 28px', fontSize: 16 },
