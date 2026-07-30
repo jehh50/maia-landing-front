@@ -1,8 +1,10 @@
 import { Box, Container, Typography, Grid } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import { SvgIconComponent } from '@mui/icons-material';
+import { tokens } from '../../theme/tokens';
 
 interface Step {
   n: string;
@@ -34,7 +36,7 @@ const steps: Step[] = [
 
 export default function Solution() {
   return (
-    <Box component="section" id="solution" sx={{ py: { xs: 7, md: 10 }, background: 'linear-gradient(180deg, var(--bg-soft) 0%, #FFFFFF 30%, #FFFFFF 70%, var(--bg-soft) 100%)' }}>
+    <Box component="section" id="solution" sx={{ py: { xs: 7, md: 10 }, background: 'linear-gradient(180deg, var(--bg-soft) 0%, var(--bg) 30%, var(--bg) 70%, var(--bg-soft) 100%)' }}>
       <Container>
         <Box className="reveal" sx={{ textAlign: 'center', maxWidth: 680, mx: 'auto', mb: 6 }}>
           <Typography variant="overline" color="primary" fontWeight={600}>Cómo funciona</Typography>
@@ -55,7 +57,7 @@ export default function Solution() {
                 p: 4,
                 height: '100%',
                 borderRadius: 3,
-                background: '#FFF9F6',
+                bgcolor: 'brand.orangeXXXL',
                 border: '1px solid var(--border)',
                 textAlign: 'center',
                 position: 'relative',
@@ -88,8 +90,8 @@ export default function Solution() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#fff',
-                    boxShadow: '0 8px 24px rgba(232,68,10,0.30)',
+                    color: 'common.white',
+                    boxShadow: `0 8px 24px ${alpha(tokens.brand.orange, 0.3)}`,
                   }}>
                     <s.Icon sx={{ fontSize: 30 }} />
                   </Box>
@@ -100,7 +102,7 @@ export default function Solution() {
                     width: 22,
                     height: 22,
                     borderRadius: '50%',
-                    background: '#fff',
+                    bgcolor: 'background.paper',
                     border: '2px solid var(--orange)',
                     display: 'flex',
                     alignItems: 'center',
