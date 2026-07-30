@@ -1,4 +1,4 @@
-# AGENTS.md — Mapa de navegación para agentes de IA
+# AGENTS.md — Mapa de navegación para agentes de IA (Frontend)
 
 > Este archivo es el **punto de entrada** para cualquier agente que trabaje en este
 > repositorio. NO es una biblia de reglas: es un **mapa**. Lee solo lo que
@@ -8,9 +8,9 @@
 
 ## 1. Antes de empezar (obligatorio)
 
-1. Ejecuta los tests de front y back (ver `docs/verification.md` para los comandos exactos)
-   y verifica que terminan sin errores. Si fallan, **para** y resuelve el entorno antes de
-   tocar código. Si el entorno ya estaba roto antes de tu sesión, no es tu culpa —
+1. Ejecuta el bloque de verificación — `npm test && npm run typecheck && npm run build`,
+   detalle en `docs/verification.md` — y comprueba que los tres terminan en 0. Si
+   fallan, **para** y resuelve el entorno antes de tocar código. Si el entorno ya estaba roto antes de tu sesión, no es tu culpa —
    pero igual debes detenerte y reportarlo en `progress/current.md`, no "arreglarlo"
    como parte de la feature que ibas a hacer.
 2. Lee `progress/current.md` para entender en qué estado quedó la última sesión.
@@ -32,24 +32,31 @@
 | `docs/conventions.md`        | Reglas de estilo, nombres, estructura, y convención de Git| Antes de escribir código, y antes de cerrar sesión |
 | `docs/verification.md`       | Cómo verificar que tu trabajo funciona (comandos de test) | Antes de declarar una tarea como `done` |
 | `docs/context.md`            | Contexto del proyecto y decisiones tomadas                | Antes de implementar (antes de architecture.md) |
-| `docs/database.md`           | Esquema de la BD `crm_application` y ajustes al migrarla  | Antes de escribir migraciones o modelos |
+| `docs/api-contract.md`       | Contratos/esquemas de los endpoints del backend que consume el frontend | Antes de integrar una pantalla con datos reales |
 | `CHECKPOINT.md`              | Criterios objetivos de "estado final correcto"            | Para auto-evaluarte |
 | `.claude/agents/`            | Definiciones de subagentes (leader, implementer, reviewer) | Si orquestas trabajo |
 | `.agents/skills/`            | Skills de referencia técnica (ver §7)                     | Antes de implementar un módulo |
-| `app/`                       | Código PHP de la app Laravel (Models, Controllers, Services…) | Para implementar backend |
-| `resources/`                 | Vistas Blade, CSS (Tailwind) y JS compilados por Vite     | Para implementar UI |
-| `routes/`                    | Definición de rutas (`web.php`, `console.php`)            | Al agregar endpoints/páginas |
-| `database/`                  | Migraciones, factories y seeders                          | Al tocar el esquema de datos |
-| `tests/`                     | Tests Pest (`Feature/` y `Unit/`)                          | Para verificar |
+| `src/`                       | Código de la app: `components/`, `pages/`, `admin/`, `hooks/`, `lib/`, `theme/` | Para implementar frontend |
+| `public/`                    | Assets estáticos                                          | Al agregar/editar assets |
+| `src/**/__tests__/`          | Tests automáticos, junto al código que prueban            | Para verificar |
 
-> **Stack:** Laravel 11 + Vite + Blade + Livewire 3 + Tailwind CSS, tests con
-> Pest. Los directorios de código anteriores existirán a partir de la feature 1
-> (scaffold) de `feature_list.json`.
+> **Stack:** React 18 + Vite 5 + TypeScript 5.6 (`strict`) + **MUI 6 + Emotion**;
+> tests con Vitest 2 + Testing Library + jsdom. **No hay Tailwind** en este
+> proyecto: los estilos van por `sx` y tokens del tema (ver
+> `docs/conventions.md` §3).
 >
-> **App legada (solo lectura):** la v1 vive en `/var/www/html/bulkapp/`; su
-> `ANALISIS.md` describe módulos, roles y vulnerabilidades. Consultarla para
-> entender el comportamiento a migrar — **nunca** copiar su código tal cual ni
-> modificarla.
+> La app **ya está construida y en producción** (landing, blog y panel admin).
+> `feature_list.json` es un backlog de mejoras sobre código existente, no un
+> plan de scaffold.
+>
+> **No existe carpeta `tests/` en la raíz:** cada test vive en un `__tests__/`
+> hermano del código que prueba.
+>
+> **Código de referencia externo (solo lectura):** en `/var/www/html/bulkapp/`
+> hay otra app (BULKSALES, CRM/call center en PHP + jQuery) con su propio
+> `ANALISIS.md`. Es un proyecto **distinto**, no una v1 de esta landing; solo es
+> relevante si una tarea pide explícitamente migrar un comportamiento de UI.
+> Nunca copiar su código tal cual (stack incompatible) ni modificarla.
 
 ## 3. Reglas duras (no negociables)
 
@@ -63,6 +70,10 @@
   credencial.** Si tu tarea requiere una variable de entorno nueva, no la inventes:
   documenta el nombre y el propósito en `progress/current.md` y deja que un humano
   la agregue.
+- **No inventes contratos de API.** Si un endpoint que necesitas consumir no
+  está en `docs/api-contract.md` ni implementado en el backend, documenta la
+  necesidad en `progress/current.md` en vez de mockear una forma de datos
+  arbitraria que luego hay que deshacer.
 
 ## 4. Cómo elegir una tarea
 
@@ -82,8 +93,8 @@ Antes de terminar:
 2. Si la tarea está acabada: marca `status: "done"` en `feature_list.json`.
 3. Mueve el resumen de `progress/current.md` al final de `progress/history.md`.
 4. Vacía `progress/current.md` dejando solo la plantilla.
-5. No dejes archivos temporales, ni `print()` de debug, ni TODOs sin contexto.
-6. Sigue la convención de commits y branches de `docs/conventions.md#git` — no
+5. No dejes archivos temporales, ni `console.log()` de debug, ni TODOs sin contexto.
+6. Sigue la convención de commits y branches de `docs/conventions.md` §8 — no
    commitees directo a `main`.
 
 ## 6. Si te bloqueas
@@ -108,6 +119,8 @@ Antes de terminar:
 - La tarea en `feature_list.json` es ambigua y admite más de una interpretación
   razonable de implementación.
 - Resolverla implica una decisión de arquitectura no cubierta en `docs/architecture.md`.
+- Requiere un endpoint de backend que no existe todavía ni está documentado en
+  `docs/api-contract.md`.
 - Requiere una credencial, variable de entorno o acceso que no tienes.
 
 En cualquiera de estos casos, **no improvises una interpretación**: documenta la
@@ -120,16 +133,18 @@ tarea como bloqueada (ver flujo de arriba).
 
 Skills de referencia técnica en `.agents/skills/`. Léelas bajo demanda, solo cuando vayas a trabajar en el módulo correspondiente.
 
-- `laravel-specialist/` — construcción de apps Laravel: Eloquent y relaciones,
-  autenticación, colas, APIs, y tests Pest/PHPUnit. Leer antes de implementar
-  cualquier feature de backend.
-- `tailwindcss-development/` — utilidades Tailwind en plantillas Blade:
-  layouts responsivos (grid/flex), componentes de UI, dark mode, espaciado y
-  tipografía. Leer antes de escribir o corregir clases Tailwind.
+- `vercel-react-best-practices/` — patrones de rendimiento de React: re-renders,
+  estado derivado, efectos, memoización, code splitting y carga de recursos. La
+  `SKILL.md` es el índice; cada regla concreta vive en `rules/<slug>.md`. Leer
+  las reglas relevantes antes de tocar componentes con estado o de trabajar en
+  la feature 22 (code splitting).
 
-> En sesiones de Claude Code estas mismas skills están disponibles vía la
-> herramienta `Skill` (nombres: `laravel-specialist`,
-> `tailwindcss-development`); `.claude/skills/` son symlinks a
-> `.agents/skills/`.
+> En sesiones de Claude Code estas skills están disponibles vía la herramienta
+> `Skill` (nombre: `vercel-react-best-practices`); `.claude/skills/` son
+> symlinks a `.agents/skills/`, y `skills-lock.json` fija la versión instalada.
+>
+> Ojo: parte de esa skill asume Next.js / React Server Components. **Aquí no hay
+> servidor de render**: es un SPA de Vite. Ignora las reglas `server-*` y aplica
+> solo las de cliente, re-render, bundle y JS.
 
 Cada skill puede tener archivos de referencia adicionales en su subcarpeta `references/`.
