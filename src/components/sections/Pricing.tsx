@@ -1,5 +1,7 @@
 import { Box, Container, Typography, Switch, FormControlLabel, Chip } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
+import { tokens } from '../../theme/tokens';
 
 interface Plan {
   name: string; monthly: number; annual: number;
@@ -57,16 +59,16 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
         <Box className="reveal" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3 }}>
           {plans.map(p => (
             <Box key={p.name} sx={{
-              position: 'relative', p: 3.5, borderRadius: 1, background: '#fff',
+              position: 'relative', p: 3.5, borderRadius: 1, bgcolor: 'background.paper',
               display: 'flex', flexDirection: 'column', height: '100%',
               border: p.featured ? '2px solid var(--orange)' : '1px solid var(--border)',
-              boxShadow: p.featured ? '0 14px 40px rgba(232,68,10,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
+              boxShadow: p.featured ? `0 14px 40px ${alpha(tokens.brand.orange, 0.15)}` : '0 1px 3px rgba(0,0,0,0.04)',
             }}>
               {p.featured && (
                 <Box sx={{
                   position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
-                  px: 1.5, py: 0.5, borderRadius: 100, background: 'primary.main',
-                  bgcolor: 'primary.main', color: '#fff', fontSize: 11, fontWeight: 700,
+                  px: 1.5, py: 0.5, borderRadius: 100,
+                  bgcolor: 'primary.main', color: 'common.white', fontSize: 11, fontWeight: 700,
                 }}>Más popular</Box>
               )}
               <Typography variant="h6" fontWeight={700}>{p.name}</Typography>
@@ -85,7 +87,7 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
                 <Box sx={{
                   mt: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75,
                   py: 1, px: 1.5, borderRadius: 0.5, fontWeight: 700, fontSize: 14, letterSpacing: 0.2,
-                  color: 'var(--green)', bgcolor: 'var(--green-l)', border: '1px solid rgba(22,163,74,0.25)',
+                  color: 'var(--green)', bgcolor: 'var(--green-l)', border: `1px solid ${alpha(tokens.brand.green, 0.25)}`,
                 }}>
                   <CardGiftcardIcon sx={{ fontSize: 18 }} />
                   {p.trial}
@@ -100,36 +102,6 @@ export default function Pricing({ isAnnual, onToggle, onOpenContact }: PricingPr
                   <Box component="li" key={f} sx={{ fontSize: 14, color: 'var(--muted2)', mb: 0.75, textDecoration: 'line-through' }}>{f}</Box>
                 ))}
               </Box>
-              {/* <Box sx={{ mt: 'auto', pt: 2.5 }}>
-                {p.name === 'Enterprise' ? (
-                  <Box component="button" onClick={onOpenContact} sx={{
-                    width: '100%', py: 1.2, border: '1px solid var(--orange)', background: 'transparent',
-                    color: 'primary.main', borderRadius: 100, fontWeight: 600, cursor: 'pointer', fontSize: 14,
-                    transition: 'all 0.2s ease', '&:hover': { background: 'var(--orange-xl)' },
-                  }}>Hablar con ventas →</Box>
-                ) : (
-                  <Box
-                    component="a"
-                    onClick={onOpenContact}
-                    sx={{
-                      display: 'block', width: '100%', py: 1.2, textAlign: 'center', textDecoration: 'none',
-                      borderRadius: 100, fontWeight: 700, fontSize: 14, cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      ...(p.featured
-                        ? {
-                          border: '1px solid var(--orange)', background: 'var(--orange)', color: '#fff',
-                          '&:hover': { background: 'var(--orange-h)', borderColor: 'var(--orange-h)' },
-                        }
-                        : {
-                          border: '1px solid var(--orange)', background: 'transparent', color: 'var(--orange)',
-                          '&:hover': { background: 'var(--orange-xl)' },
-                        }),
-                    }}
-                  >
-                    Hablar con ventas →
-                  </Box>
-                )}
-              </Box> */}
             </Box>
           ))}
         </Box>
