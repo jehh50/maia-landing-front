@@ -562,7 +562,9 @@ muestran calculados. Un formulario que los ofrezca como campos editables está
 contradiciendo el modelo.
 
 **Errores:** `422 { error, field }` en validación, `404` no encontrado, `500`. El
-`field` refuerza la necesidad de la **feature 31** (`normalizeApi` hoy lo descarta).
+`field` ya llega al consumidor: la **feature 31** lo propaga en `ApiFailure`
+(ver §1), así que el formulario puede marcar en rojo el campo que el backend
+rechaza.
 
 **Guardar la relación con la landing:** `src/components/sections/Pricing.tsx` sigue
 con su array `plans` hard-coded y **no se toca**. Conectarla es una feature futura;

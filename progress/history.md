@@ -1676,3 +1676,127 @@ hacer **antes**, en ese orden.
   aceptadas de la 29** (estados de carga y error de la galería), y la deuda ajena
   confirmada intacta: `ArticlesList.tsx` y `Blog.tsx` sin migrar a `normalizeApi`,
   y el doble `useReveal`.
+
+---
+
+## 2026-07-31 — Feature 31: `normalizeApi` propaga el campo `field` de los errores 422
+
+**Estado final:** done — **APROBADO** en `progress/review_31.md` (veredicto
+`APPROVED`, §2 los 4 `acceptance` uno a uno, §8 los 11 checkpoints, **11/11**, sin
+rechazo previo). Informe del implementer en `progress/impl_31.md`.
+**Rama / commit:** `feat/admin-cruds` · `040527a` (padre `a3fe70a`) · **4 archivos**:
+`src/lib/api.ts`, `src/lib/__tests__/api.test.ts`, `docs/api-contract.md` y el
+propio informe.
+
+**Qué se hizo:**
+
+- **`src/lib/api.ts`:** `ApiFailure` gana `field?: string` (con docblock), nueva
+  función privada `readErrorField(data: unknown): string | null` —hermana de
+  `readErrorMessage`— y `normalizeApi` propaga el valor con
+  `return field ? { ...failure, field } : failure`.
+- **`src/lib/__tests__/api.test.ts`:** `describe` nuevo con **6 tests** (422 con
+  `field`, 422 sin `field`, `field` no-string, `field` vacío, 5xx sin body y fallo
+  de red). Los **7 tests previos quedaron intactos**, ni una línea tocada: el único
+  cambio fuera del bloque nuevo es `+ createAdminArticle` en el import.
+- **`docs/api-contract.md` §1 «Forma normalizada»:** firma actualizada, fila nueva
+  en la tabla de casos y subsección propia con las reglas de `field`.
+
+**Decisiones que importan:**
+
+- **La clave se omite, no se emite como `undefined`.** Un error sin `field`
+  devuelve literalmente `{ ok: false, status, error }`, byte a byte lo de antes.
+  Por eso el test del caso «sin `field`» no se limita a `toEqual` —que **ignora
+  las claves `undefined`**— sino que añade `expect('field' in res).toBe(false)`.
+  Esa aserción es la única que discrimina, y quedó demostrado por mutación.
+- **Guardas sobre `unknown`, cero `any` y cero aserciones de tipo:** el
+  estrechamiento por `'field' in data` basta para desestructurar en TS 5.6. Un
+  `field` que no sea string, o en blanco, **se ignora**: propagar un número como
+  si fuera el nombre de un input rompería en silencio al consumidor de la 32-36.
+- **Aditivo de verdad, no de palabra:**
+  `git diff a3fe70a 040527a -- src/admin src/pages src/components src/hooks src/theme`
+  → **salida vacía**. Los dos consumidores de `normalizeApi` (`LeadsList.tsx:34` y
+  `BlogIndex.tsx:20`) no cambian ni de forma ni de comportamiento.
+- **No se amplió el scope:** se dejó intacto el `as { error?: unknown }`
+  preexistente de `readErrorMessage`, no se tocó el `403 { error, message }` de
+  §10.1 ni `mockPrices.ts`. Se señalaron en `impl_31.md` §2 en vez de arreglarlas,
+  que es exactamente lo que pide C10.
+
+**Sobre la review:** el revisor **no se fió del informe**. Reprodujo por su cuenta
+las **dos mutaciones** (quitar la propagación → 1 fallo; propagar sin guardas → 4
+fallos) con el mismo conteo y los mismos tests caídos que declara `impl_31.md` §3,
+restaurando después con `md5sum` idéntico al original. Añadió un test temporal con
+**9 bordes extra** del guard (body string, array, number, `null`, ausente,
+`field: null`, objeto, en blanco, y `field` sin `error`) que **creó, ejecutó y
+borró**, dejando `git status` limpio.
+
+**Verificación (rehecha en este cierre, con mis propios ojos):**
+`npm test` **18 archivos / 125 tests**, `Test Files 18 passed (18)`, exit **0**
+(88,56 s) · `npm run typecheck` (`tsc -b --noEmit`) exit **0** · `npm run build`
+exit **0** con el aviso esperado `Some chunks are larger than 500 kB`
+(`✓ built in 12.53s`). Baseline `18 / 119` → **`18 / 125`**: **+6 tests, 0 archivos
+nuevos, 0 tests previos rotos**, todos atribuibles a esta feature. Coincide con lo
+medido por el implementer (`impl_31.md` §4) y por el revisor (`review_31.md` §1).
+
+> **Salvedad honesta sobre esa medición:** el árbol **no estaba limpio** al
+> cerrar. `git status` mostraba modificaciones **sin commitear** en
+> `src/lib/api.ts` (+85 líneas de helpers de usuarios) y
+> `src/admin/users/UsersList.tsx` (+42/−23): es **WIP de la feature 32**, lanzada
+> en paralelo y todavía `pending`. Este cierre **no tocó nada de `src/`**. La cifra
+> `18 / 125` se midió con ese WIP presente y coincide igualmente porque **la 32 aún
+> no ha añadido tests**; el baseline limpio de esta feature es el del commit
+> `040527a`.
+
+> **Nota de método sobre el flake conocido:** en este cierre lancé por error dos
+> `npm test` **concurrentes**, y ambos fallaron por timeout de 15 s —uno en
+> `PricesList`, el otro además en `AppRoutes` y `ContactModal`—. Repetido **una
+> sola ejecución a solas**: 18/125 verde. No es un fallo del árbol; es la misma
+> sensibilidad a la carga de CPU ya registrada como flake de `AppRoutes.test.tsx`,
+> y ahora se sabe que **alcanza también a `PricesList` y `ContactModal`**. Regla
+> práctica: **nunca correr dos suites a la vez** en esta máquina.
+
+**Qué desbloquea:**
+
+Esta era **la pieza que faltaba para cablear**. Con `field` propagado, las
+features **32 (usuarios), 33 (imágenes) y 34 (precios)** pueden ir **en paralelo
+entre sí**: cada una vive en su propia carpeta (`src/admin/users/`,
+`src/admin/images/`, `src/admin/prices/`) y las tres maquetas ya modelan `field`
+en su `MockResult`, así que el cableado es mecánico. Este era el único punto donde
+no lo era.
+
+**Pendiente:**
+
+- **`src/admin/prices/mockPrices.ts:37`** dice que «`normalizeApi` todavía descarta
+  `field` — es la feature 31». **Ya no es cierto.** **No se arregla aquí:** es
+  código de la **feature 30**, ya cerrada, y **C10 prohíbe tocar deuda ajena de
+  paso**. Corresponde corregirlo —o que desaparezca con el archivo— en la
+  **feature 34**, que es quien elimina o reduce ese mock al cablear precios. La
+  referencia equivalente de `docs/api-contract.md` §10.4 **ya está corregida**.
+- **Las features 35 y 36 (migrar la landing) exigen una decisión explícita de
+  fallback**, y va en su `acceptance`: **las tablas del backend están vacías y sin
+  seed**, y la landing **no puede quedarse sin precios ni sin carrusel**. O se
+  siembran datos —o se cargan desde el propio panel, que para eso están las
+  32-34— o la migración define un fallback explícito. No es un detalle de
+  implementación: es la condición para que 35 y 36 no rompan producción.
+- **No existe `GET /api/admin/precios`**: el listado de planes del panel sale del
+  endpoint **público** `GET /api/precios` (verificado: responde 404, no 401). La
+  descripción de la feature 30 en `feature_list.json` dice lo contrario; es
+  registro histórico, no contrato.
+- **Discrepancia viva `API_READY.md` vs backend** (`docs/api-contract.md` §10.4):
+  un plan Custom trae `precio_mensual` como **`0`**, no `null`. **Detectar
+  `es_custom`, nunca el nulo.**
+- **Observaciones no bloqueantes de `review_31.md` §9**, ninguna urgente:
+  `docs/architecture.md:319` describe el fallo como `{ ok, status, error }` sin
+  mencionar el `field` opcional (correcto, pero incompleto); un `field` con
+  espacios alrededor **se propaga sin recortar** —coherente con
+  `readErrorMessage`—, así que si las 32-36 lo mapean al `name` de un input,
+  conviene normalizar **en el consumidor**; y un `2xx` sin la `key` esperada pero
+  con `field` en el body también lo propagaría (caso irreal contra este backend).
+- Siguen abiertos, sin cambios, los pendientes heredados de las features 27-30:
+  el **copy obsoleto de `AdminHome.tsx`** (candidato a feature nueva), el **arnés
+  de suspensión (H2)**, `tsconfig.tsbuildinfo` trackeado pese a estar en
+  `.gitignore`, los preexistentes **H1-H3** de la feature 24 más el CTA de precios,
+  las **lagunas de cobertura aceptadas de la 29**, las observaciones de
+  `review_30.md` §9 (moneda `es-MX` vs «dólares», densidad de `data-testid`, el
+  `Switch` de `es_custom` sin respaldo en §10.4) y la deuda ajena confirmada
+  intacta: `ArticlesList.tsx` y `Blog.tsx` sin migrar a `normalizeApi`, y el doble
+  `useReveal`.

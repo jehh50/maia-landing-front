@@ -291,7 +291,7 @@
     {
       "id": 31,
       "name": "normalizeApi propaga el campo 'field' de los errores 422",
-      "status": "pending",
+      "status": "done",
       "priority": "media",
       "description": "Hallazgo de la review de la feature 28 (progress/review_28.md). El backend devuelve { error, field } en sus 422 (contact, usuarios, imagenes y previsiblemente precios), pero ApiFailure en src/lib/api.ts solo tiene { ok, status, error }: normalizeApi descarta 'field'. Consecuencia: una pantalla que quiera marcar en rojo el campo culpable no puede hacerlo con el error del backend, solo con su validacion de cliente. Hoy no rompe nada porque las tres vistas nuevas son maquetas con mock, pero convierte el cableado futuro en una reescritura del manejo de errores en vez del cambio mecanico que se busco al maquetar contra el contrato.",
       "acceptance": [
