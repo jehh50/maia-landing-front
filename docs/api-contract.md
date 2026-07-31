@@ -473,9 +473,20 @@ cambios en el front. **No conviene ocultar ese botón por rol de forma permanent
 |---|---|---|---|
 | `GET` | `/api/precios` | pública | `200 { rows }` |
 | `GET` | `/api/admin/precios/:id` | cookie + admin | `200 { plan }` |
+| ~~`GET`~~ | ~~`/api/admin/precios`~~ | — | **NO EXISTE** (ver aviso) |
 | `POST` | `/api/admin/precios` | cookie + admin | `201 { plan }` |
 | `PATCH` | `/api/admin/precios/:id` | cookie + admin | `200 { plan }` |
 | `DELETE` | `/api/admin/precios/:id` | cookie + admin | `204` |
+
+> ⚠️ **No hay listado bajo `/api/admin/`.** Verificado contra el servidor vivo el
+> 2026-07-31: `GET /api/admin/precios` responde **`404`**, no `401` — la ruta no
+> existe, no es un problema de sesión. El router solo declara `GET` sobre
+> `/:id`. **Para listar planes en el panel hay que usar el endpoint público
+> `GET /api/precios`**, a diferencia de usuarios, imágenes y artículos, que sí
+> tienen su listado bajo `/api/admin/*`. `API_READY.md` es coherente con esto (su
+> tabla lista solo `POST/PATCH/DELETE` para precios), pero la asimetría es fácil
+> de pasar por alto y cuesta un rato de depuración contra un 404 que parece de
+> autenticación.
 
 **Objeto `plan`** (`toPlan()`, `src/precios.js:91-116`) — 14 campos:
 
