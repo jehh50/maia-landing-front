@@ -1413,3 +1413,126 @@ esta sesión: el conteo total no es atribuible solo a la 28.
   a la 28) y los preexistentes **H1-H3** de la feature 24 más el CTA de precios.
 - Deuda ajena confirmada intacta (C10): `ArticlesList.tsx` y `Blog.tsx` sin migrar
   a `normalizeApi`, y el doble `useReveal`.
+
+---
+
+## 2026-07-31 — Feature 29: Vista admin de imágenes (maqueta con datos mock)
+
+**Estado final:** done — **APROBADO** en `progress/review_29.md` §12.7 (re-review).
+**Hubo un rechazo previo:** el primer veredicto (§1-§11, sobre el commit `339752c`)
+fue `CHANGES_REQUESTED` **solo por C2**, cobertura: dos cláusulas del `acceptance`
+alcanzables desde la UI no tenían ningún test — el **estado vacío**
+(`ImagesGrid.tsx:288-291`, acceptance 1) y la **obligatoriedad de `seccion`**
+(`ImageUploadDialog.tsx:82`, acceptance 2, alcanzable en el flujo por defecto con el
+filtro en «Todas»). El revisor dejó por escrito que no pedía tocar código de
+producción («el código de producción está bien como está», §10) y exceptuó de forma
+argumentada los estados de `carga` y `error` (§3.1: `error` es hoy inalcanzable desde
+la UI). Se cerró con **dos tests y nada más**, y el revisor lo comprobó él mismo:
+`git diff --stat 339752c..HEAD -- src/admin/images/` → **salida vacía**, es decir los
+tres archivos de producción quedaron **byte a byte** como los aprobó en §4-§7. El
+arreglo fue exclusivamente de cobertura.
+**Rama / commit:** `feat/admin-cruds` · código en `339752c` · tests del arreglo en
+`86e795f` · veredicto en `1e8fa38` · **4 archivos de `src/`** (3 nuevos + la
+reescritura del anclaje de la feature 27).
+
+**Qué se hizo:**
+
+- **`src/admin/images/mockImages.ts` (nuevo):** almacén en memoria con
+  `resetMockImages()` y los **9 campos exactos** de `META_COLS`
+  (`api-contract.md` §10.2), **sin `bytes`** y **sin inventar un campo `url`**.
+  `Seccion` es un tipo **derivado** de `SECCIONES` (`as const`), no una unión
+  duplicada, y `SECCION_ERROR` se construye del mismo catálogo. Listado
+  `{ rows }` sin paginación y orden `orden ASC, id ASC`. Mensajes de error
+  **copiados literalmente del backend** para que el cableado no reescriba copy.
+- **`src/admin/images/ImageUploadDialog.tsx` (nuevo):** un solo
+  `input[type=file]`, `accept` de png/jpeg/webp (**SVG excluido a propósito y
+  explicado en el copy**), límite de 5 MB, `seccion` obligatoria, `alt` opcional
+  con `maxLength=300`, `orden` entero ≥ 0 con default 0. Valida además la
+  coherencia extensión↔MIME para evitar un 415 gratuito.
+- **`src/admin/images/ImagesGrid.tsx` (reescrito sobre el anclaje de la 27):**
+  galería por sección con estados de carga/error/vacío, filtro, edición limitada a
+  `alt`/`orden`/`seccion` y borrado con `Dialog` de confirmación. **No ofrece
+  «reemplazar imagen»** y el copy dice *qué hacer en su lugar*, en dos sitios.
+  Conserva nombre de archivo y `export default`, así que el `lazy()` de
+  `AppRoutes.tsx` sigue emitiendo su chunk propio (`ImagesGrid-*.js`, 15,26 kB).
+- **`src/admin/__tests__/ImagesGrid.test.tsx` (nuevo):** 10 tests en `339752c`,
+  **12 tras el arreglo del rechazo**. Cero red de verdad: espía
+  `globalThis.fetch` y afirma `not.toHaveBeenCalled()`.
+
+**Decisiones (declaradas por el autor en `impl_29.md` §4, confirmadas por el review):**
+
+- **`mockPreviewUrl()` en vez de un campo `url`/`preview` en la fila**, para que la
+  fila conserve los 9 campos exactos. Las previews son estáticos de `public/`; lo
+  subido en sesión no tiene binario y se pinta con «Vista previa no disponible».
+  Se evitó `URL.createObjectURL` a propósito: jsdom no lo implementa.
+- **Escritura reservada al rol `admin`**: el contrato manda `requireRole('admin')`
+  en POST/PATCH/DELETE de imágenes y un `editor` recibiría 403, así que no se le
+  ofrece un botón que va a fallar; ve la galería y un `Alert` informativo.
+- **`aria-label` fuera de los `TextField select`**: MUI produce nombres accesibles
+  duplicados («Filtrar por sección Filtrar por sección») y rompe un `getByRole` con
+  string exacto. La etiqueta visible queda como única fuente del nombre. Nota
+  heredada útil: el test de `UserDialog` (feature 28) solo pasa porque usa la regex
+  `/rol/i`, que tolera «Rol Rol».
+- **`mime_type` guarda el MIME declarado**, no el detectado por *magic bytes* como
+  hace el backend: en el navegador no hay forma de hacerlo mejor y el diálogo lo
+  advierte en el copy. No es un fallo; que no sorprenda al cablear.
+
+**Verificación (rehecha en este cierre, con mis propios ojos, no copiada de ningún
+informe):** `npm test && npm run typecheck && npm run build` → **exit 0** los tres ·
+`npm test` **17 archivos / 110 tests**, 0 fallos · `npm run typecheck` exit 0 ·
+`npm run build` exit 0 con el aviso esperado `Some chunks are larger than 500 kB`
+(`✓ built in 34.72s`). Coincide con lo que midió el revisor en §12.1 (110 tests,
+`ImagesGrid.test.tsx` 12/12 en aislado). **Sobre el conteo:** el salto `106 → 110`
+son +4 y **solo +2 son de la 29** (`ImagesGrid.test.tsx` 10 → 12); los otros +2
+vienen de `UsersList.test.tsx` en `cd803cb`, cierre de la feature **28**. Tanto el
+autor como el revisor declararon esa atribución en vez de apuntársela.
+
+**Pendiente:**
+
+- **Feature 30 (`pending`) — en curso ahora mismo en otra sesión.** Su código de
+  producción ya está commiteado (`c8dec91`, «WIP») y le faltan los tests. En este
+  cierre **no se ha tocado** ni su entrada de `feature_list.json` ni
+  `src/admin/prices/`, `src/admin/__tests__/PricesList.test.tsx` o
+  `progress/impl_30.md`. Si el conteo de tests sube por encima de 110, es suyo, no
+  una regresión de la 29.
+- **Feature 31 (`pending`) — `normalizeApi` descarta el campo `field` de los 422.**
+  Hallazgo de la review de la 28, confirmado por la de la 29 (§4:
+  `MockResult<T>` ya modela `field?`). Con **los tres CRUD del backend ya
+  publicados**, es **lo primero que hará falta** para cablear de verdad: sin ella el
+  marcado por campo se pierde y todo cae al `Alert` global. Es el único punto donde
+  el cableado no será mecánico.
+- **El backend está completo y verificado contra el servidor vivo**
+  (`/api/health` → `{"ok":true,"db":true,"mailer":true}`), **pero las tablas están
+  vacías y sin seed**: cablear la landing hoy dejaría precios y carrusel **en
+  blanco**. Antes de cualquier feature de integración hace falta sembrar datos.
+- **No existe `GET /api/admin/precios`.** El listado de planes del panel sale del
+  endpoint **público** `GET /api/precios`. Verificado contra el servidor: responde
+  **404, no 401**, así que no es un problema de sesión. Ojo, porque la descripción
+  de la feature 30 en `feature_list.json` todavía dice «la ruta es
+  /api/admin/precios».
+- **Conteos desactualizados en `docs/`** (`review_28.md` §7.2-§7.3):
+  `docs/verification.md` §1-§2 y `docs/architecture.md:252` siguen diciendo
+  `15 archivos / 86 tests`; el árbol va por **17 / 110**. Se aplazó otra vez a
+  propósito: la 30 está en vuelo y escribir la cifra hoy vuelve a dejarla mal.
+  Además, este cierre tenía `docs/` fuera de su alcance autorizado.
+- **Laguna de cobertura conocida y aceptada** (`review_29.md` §3.1, no obligatoria
+  según `verification.md` §5): los estados de **carga** y **error** de la galería no
+  se testean. `error` es hoy **inalcanzable desde la UI** (`listMockImages` solo
+  falla con una `seccion` fuera del enum, que el `select` no puede producir) y
+  probarlo exigiría inyectar un fallo en el mock; `carga` es un `CircularProgress`
+  que se resuelve en el mismo tick. También queda sin aserción el `maxLength=300`
+  del alt, marcado por el revisor como **no bloqueante** y deliberadamente no
+  añadido para no salirse del encargo del rechazo (C10).
+- **Nota de scope, no imputable a la 29** (`review_29.md` §7): el filtro
+  `minWidth: 220` cae dentro de la franja que **H3** ya desborda a 360 px (la causa
+  es el sidebar de `AdminLayout.tsx`, que esta feature no toca). No crea una clase
+  nueva de desborde y **no debe arreglarse aquí**; pertenece a H3.
+- Siguen abiertos, sin cambios, los pendientes heredados de las features 27 y 28:
+  **copy de `AdminHome.tsx`** (reescribir «Próximos pasos» cuando cierre la 30,
+  incluida la mención a `node scripts/create-user.js` que la UI ya sustituye), el
+  **arnés de suspensión (H2)**, el **flake de `AppRoutes.test.tsx`**,
+  `tsconfig.tsbuildinfo` trackeado pese a estar en `.gitignore` (`339752c` vuelve a
+  arrastrarlo; deuda del arranque del repo, no de esta feature) y los preexistentes
+  **H1-H3** de la feature 24 más el CTA de precios.
+- Deuda ajena confirmada intacta (C10): `ArticlesList.tsx` y `Blog.tsx` sin migrar
+  a `normalizeApi`, y el doble `useReveal`.

@@ -236,7 +236,7 @@
     {
       "id": 29,
       "name": "Vista admin de imagenes (maqueta con datos mock)",
-      "status": "pending",
+      "status": "done",
       "priority": "alta",
       "description": "Maqueta la administracion de imagenes de la landing. El backend SI tiene el contrato cerrado (5 endpoints, tabla images), pero esta sin commitear, sin tests y sin desplegar, asi que se maqueta con mock respetando ese contrato al detalle para que el cableado futuro sea mecanico. Contrato en progress/explore_backend_cruds.md §2 y en docs/api-contract.md.",
       "acceptance": [

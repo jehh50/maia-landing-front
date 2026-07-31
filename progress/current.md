@@ -43,53 +43,52 @@
 
 ## Pendiente para la siguiente sesión
 
-- **Feature 28 cerrada como `done`**, veredicto **APROBADO** en
-  `progress/review_28.md` (10/10 acceptance; único checkpoint en rojo, **C7**,
-  documental, resuelto en el cierre). El resumen completo está al final de
-  `progress/history.md`. Ojo con dos cosas al leer esa feature:
-  `progress/impl_28.md` **es una reconstrucción a posteriori** —el implementer
-  original cayó por un fallo de sesión antes de escribirlo— y lo marca desde su
-  primera línea; y el test de «no puedes borrarte a ti mismo» se **endureció en el
-  cierre** (`it.each` sobre tres sesiones distintas, validado por mutación), sin
-  tocar el comportamiento ya aprobado.
-- **Feature 29 en vuelo en otra sesión** mientras se cerraba la 28: su estado en
-  `feature_list.json`, sus archivos y su cierre documental **no se tocaron**. Su
-  informe y su review ya existen (`progress/impl_29.md`, `progress/review_29.md`);
-  el cierre lo hace quien la lleva.
-- **Feature 30 (`pending`)**: precios. Sigue tocando solo `src/admin/prices/` y su
-  test; no necesita `AppRoutes.tsx` ni `AdminLayout.tsx`.
-- **Feature 31 (`pending`) — `normalizeApi` no propaga `field`**: hallazgo de la
-  review de la 28 (`progress/review_28.md` §5.4) que **no es deuda de la 28**. El
-  backend devuelve `{ error, field }` en sus 422, pero `ApiFailure` de
-  `src/lib/api.ts` es `{ ok, status, error }` y `normalizeApi` descarta `field`.
-  Hoy no rompe nada (las tres vistas nuevas son maquetas con mock), pero es **el
-  único punto donde el cableado de la API real no será mecánico**: sin ella, el
-  marcado por campo de los errores del backend se pierde y todo cae al `Alert`
-  global. Debe resolverse antes de la feature de integración que traiga
-  `API_READY.md`.
-- **Dato nuevo, sin verificar por mí:** durante esta sesión ha aparecido un
-  `API_READY.md` sin trackear en la raíz del repo. Si es el aviso que el backend
-  prometió, la feature de cableado deja de ser hipotética y la **31** pasa a ser
-  bloqueante para ella. No lo he leído ni actuado sobre él: queda para el líder.
-- **Conteos de test desactualizados en `docs/`** (`review_28.md` §7.2-§7.3):
-  `docs/verification.md` §1-§2 y `docs/architecture.md:252` siguen diciendo
-  `15 archivos / 86 tests`. Se actualizan cuando cierre la 29, con una cifra ya
-  estable — hacerlo con la 29 en vuelo garantizaba dejarlos mal otra vez.
-- El resto de pendientes vivos (copy de `AdminHome.tsx`, arnés de suspensión H2,
-  flake de `AppRoutes.test.tsx`, `tsconfig.tsbuildinfo` trackeado, y los
-  preexistentes H1-H3 de la feature 24 más el CTA de precios) quedan registrados
-  al final de `progress/history.md`, en las entradas de las features 27 y 28.
+- **Feature 29 cerrada como `done`**, veredicto **APROBADO** en
+  `progress/review_29.md` §12.7. Hubo un **rechazo previo** (`CHANGES_REQUESTED`,
+  §1-§11) **solo por C2/cobertura**: faltaban tests del estado vacío y de la
+  obligatoriedad de `seccion`. Se cerró con **dos tests y nada más**; el revisor
+  verificó por su cuenta, con mutación y con
+  `git diff --stat 339752c..HEAD -- src/admin/images/` (salida vacía), que el
+  código de producción quedó **byte a byte** como lo aprobó. El resumen completo
+  está al final de `progress/history.md`.
+- **Feature 30 (`pending`) — en curso ahora mismo en otra sesión.** Código de
+  producción commiteado en `c8dec91` (WIP); le faltan los tests. No tocar su
+  entrada ni `src/admin/prices/`, `src/admin/__tests__/PricesList.test.tsx` ni
+  `progress/impl_30.md`. Si el conteo de tests sube por encima de **110**, es
+  suyo: no leerlo como regresión.
+- **Feature 31 (`pending`) — `normalizeApi` descarta el campo `field` de los
+  errores 422.** Con **los tres CRUD del backend ya publicados**, es **lo primero
+  que hará falta** para cablear de verdad: sin ella, el marcado por campo se
+  pierde y todo cae al `Alert` global. Único punto donde el cableado no es
+  mecánico.
+- **Backend completo y verificado contra el servidor vivo**
+  (`/api/health` → `{"ok":true,"db":true,"mailer":true}`), **pero las tablas
+  están vacías y sin seed**: cablear la landing hoy dejaría **precios y carrusel
+  en blanco**. Sembrar datos antes de cualquier feature de integración.
+- **No existe `GET /api/admin/precios`.** El listado de planes del panel sale del
+  endpoint **público** `GET /api/precios`. Verificado contra el servidor:
+  responde **404, no 401**. La descripción de la feature 30 en
+  `feature_list.json` todavía dice lo contrario.
+- **Conteos de test desactualizados en `docs/`**: `docs/verification.md` §1-§2 y
+  `docs/architecture.md:252` siguen diciendo `15 archivos / 86 tests`; el árbol
+  va por **17 / 110**. Se aplaza otra vez a propósito, con la 30 en vuelo, para
+  no volver a escribir una cifra que nace vieja. Actualizar al cerrar la 30.
+- El resto de pendientes vivos (lagunas de cobertura aceptadas de la 29, copy de
+  `AdminHome.tsx`, arnés de suspensión H2, flake de `AppRoutes.test.tsx`,
+  `tsconfig.tsbuildinfo` trackeado, y los preexistentes H1-H3 de la feature 24
+  más el CTA de precios) quedan registrados al final de `progress/history.md`, en
+  las entradas de las features 27, 28 y 29.
 
 ---
 
 ## Último baseline verde conocido
 
-`2026-07-30` (feature 28 cerrada, `APROBADO` en `progress/review_28.md`) —
+`2026-07-31` (feature 29 cerrada, `APROBADO` en `progress/review_29.md`) —
 `npm test` **17 archivos / 110 tests** · exit 0 · `npm run typecheck` exit 0 ·
 `npm run build` exit 0 (aviso esperado de chunk >500 kB).
 
-> Aviso sobre esa cifra: **no es atribuible solo a la 28**. El cierre de la 28
-> partió de `17 / 106`, sumó **+2** al endurecer `UsersList.test.tsx` (10 → 12) y
-> los otros **+2** son de la feature 29, que se estaba implementando en paralelo.
-> Si al empezar tu sesión ves un número distinto, compáralo contra el estado de la
-> 29 antes de leerlo como regresión.
+> Aviso sobre esa cifra: **no es atribuible solo a la 29**. De los `106 → 110`,
+> **+2 son de la 29** (`ImagesGrid.test.tsx` 10 → 12) y **+2 del cierre de la 28**
+> (`UsersList.test.tsx`, commit `cd803cb`). Y va a subir en breve: la **feature
+> 30** está escribiendo sus tests en paralelo. Si ves más de 110, compáralo con el
+> estado de la 30 antes de leerlo como regresión.
