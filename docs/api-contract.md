@@ -93,7 +93,8 @@ Reglas:
   formulario es responsabilidad del consumidor.
 - **Es aditivo**: `error` sigue llegando siempre, así que un consumidor que solo
   pinte `error` no cambia de comportamiento. Hoy lo son `BlogIndex` y
-  `LeadsList`, que ignoran `field`.
+  `LeadsList`, que ignoran `field`. El primero que lo aprovecha es `UserDialog`
+  (feature 32), que lo mapea al input del formulario.
 
 Notas:
 
@@ -103,8 +104,8 @@ Notas:
   normaliza la forma del resultado en el cliente.
 - **Es aditivo**: los helpers de la tabla anterior conservan su firma
   `{ ok, status, data }`. La migración de consumidores es **incremental**; hoy
-  usan `normalizeApi` `BlogIndex` (`publicJson`) y `LeadsList` (`apiJson`), y el
-  resto sigue con la forma cruda.
+  usan `normalizeApi` `BlogIndex` (`publicJson`), `LeadsList` y la pantalla de
+  usuarios (`apiJson`), y el resto sigue con la forma cruda.
 
 ### Autenticación
 
@@ -212,6 +213,69 @@ paginar.
 `200` → `{ lead: AdminLead }` · `404` → `{ error: string }`
 
 ---
+
+## 4 bis. Admin — usuarios (`/api/admin/users`) — **vigente**
+
+Privados y **solo rol `admin`**: las cinco rutas pasan por
+`requireAuth + requireRole('admin')`. Un `editor` recibe `403` (ojo con su forma,
+§10.1). Consumidos desde la **feature 32**.
+
+| Método | Ruta | Helper | Request | OK |
+|--------|------|--------|---------|-----|
+| `GET` | `/api/admin/users` | `listAdminUsers()` | — | `200 { rows: AdminUserRow[] }` |
+| `GET` | `/api/admin/users/:id` | `getAdminUser(id)` | — | `200 { user }` |
+| `POST` | `/api/admin/users` | `createAdminUser(payload)` | `UserCreateInput` | `201 { user }` |
+| `PATCH` | `/api/admin/users/:id` | `updateAdminUser(id, patch)` | `UserPatchInput` | `200 { user }` |
+| `DELETE` | `/api/admin/users/:id` | `deleteAdminUser(id)` | — | `204` **sin cuerpo** |
+
+```ts
+interface AdminUserRow extends AdminUser { created_at: string }   // id, email, name, role, created_at
+
+interface UserInput { email: string; name: string; role: 'admin' | 'editor'; password?: string }
+type UserCreateInput = UserInput & { password: string }   // password OBLIGATORIO
+type UserPatchInput  = Partial<UserInput>                 // password OPCIONAL: omitirlo conserva la actual
+```
+
+**`password_hash` nunca sale por la API** y no se modela en el front.
+`password` solo viaja de subida.
+
+Tres asimetrías respecto a `/api/admin/leads`, todas verificadas en el backend:
+
+1. **El listado es `{ rows }` sin paginación.** No hay `total`, `limit` ni
+   `offset`; el orden es fijo (`id ASC`). Una pantalla de usuarios **no** lleva
+   `TablePagination`.
+2. **`GET /api/admin/users` no acepta ningún parámetro de query.** No hay `?q=`:
+   `usersRouter.js` no lee `req.query` y `listUsers` es un `SELECT` sin `WHERE`.
+   La búsqueda de la pantalla filtra **en cliente** sobre las filas ya cargadas.
+3. **`DELETE` responde `204` sin cuerpo**, así que `apiJson` devuelve
+   `data: null` y `normalizeApi(…, 'ok')` lo leería como fallo. El helper
+   `deleteAdminUser` sintetiza el `{ ok: true }` que el `204` no trae, **y solo
+   si la respuesta fue 2xx** — un error sin body sigue siendo un error. Mismo
+   molde para los `DELETE` de imágenes y precios.
+
+Errores, con `field` cuando aplica (lo propaga `ApiFailure`, ver §1):
+
+| Status | Body | Nota |
+|--------|------|------|
+| `422` | `{ error: 'email requerido', field: 'email' }` | ídem `password`, ídem `role` |
+| `422` | `{ error: 'Nada que actualizar: se esperaba email, name, role o password' }` | sin `field` |
+| `409` | `{ error: 'El email ya está en uso', field: 'email' }` | alta y edición |
+| `409` | `{ error: 'No puedes eliminar tu propio usuario' }` | ver abajo |
+| `409` | `{ error: 'No puedes eliminar al último usuario con rol admin' }` | ver abajo |
+| `404` | `{ error: 'Usuario no encontrado' }` | también con un `:id` no numérico o desbordado |
+| `403` | `{ ok: false, error: 'forbidden', message }` | forma anómala, §10.1 |
+
+**Las dos reglas de negocio del borrado, y qué le toca a cada lado:**
+
+1. **Usuario propio** — la UI lo **previene**: deshabilita el borrado de la fila
+   del usuario en sesión (`useOutletContext<AdminUser>()` da su `id`). La
+   petición no llega a salir.
+2. **Último admin** — la UI **no puede saberlo** de antemano de forma fiable, así
+   que se muestra el mensaje del `409` cuando llega. El copy del diálogo de
+   confirmación lo advierte de antemano.
+
+`articles.author_id → users(id) ON DELETE SET NULL`: borrar un usuario **no**
+borra sus artículos, les deja el autor a `NULL`. El copy del borrado lo dice.
 
 ## 5. Admin — artículos (`/api/admin/articles`)
 
@@ -323,10 +387,12 @@ No se mockea `src/lib/api.ts`: los tests interceptan `globalThis.fetch` con
 
 ## 10. Recursos en maquetación (usuarios, imágenes, precios)
 
-> **Nada de esta sección se consume todavía.** Las features 27-30 maquetan las tres
-> vistas del admin con **datos mock locales** y **sin tocar `src/lib/api.ts`**, por
-> decisión explícita del humano (2026-07-29). Esta sección existe para que el
-> cableado futuro sea mecánico y para dejar por escrito qué está acordado y qué no.
+> **Usuarios ya no está aquí: se cableó en la feature 32 y su contrato vigente es
+> el §4 bis.** Lo que queda de esta sección son imágenes y precios, que las
+> features 27-30 maquetaron con **datos mock locales** y **sin tocar
+> `src/lib/api.ts`**, por decisión explícita del humano (2026-07-29). Existe para
+> que el cableado restante (features 33 y 34) sea mecánico y para dejar por
+> escrito qué está acordado y qué no.
 >
 > Estado del backend verificado en `/var/www/html/maia-landing-back` el 2026-07-29;
 > informe completo con rutas y líneas en `progress/explore_backend_cruds.md`.
@@ -334,7 +400,7 @@ No se mockea `src/lib/api.ts`: los tests interceptan `globalThis.fetch` con
 | Recurso | Endpoints en el backend | ¿Consumible? |
 |---|---|---|
 | **Imágenes** | Los 5 existen y funcionan, pero **sin commitear, sin tests y sin desplegar** | No todavía; contrato **cerrado** |
-| **Usuarios** | **Ninguno.** Solo la tabla `users` y dos scripts CLI | No; campos fiables, rutas por definir |
+| **Usuarios** | Los 5 existen | **Sí, ya cableado (feature 32) — contrato en §4 bis** |
 | **Precios** | **Nada**: ni tabla, ni módulo, ni modelo de datos decidido | No; propuesta nuestra, sin confirmar |
 
 ### 10.1 Dos avisos que afectan al código del front cuando se cablee
@@ -346,6 +412,11 @@ Es decir: en un 403 el campo `error` trae el token `"forbidden"`, no un mensaje
 legible, y el texto para el usuario está en `message`. Un
 `normalizeApi(...)` pintando `res.error` mostrará literalmente «forbidden». Hay que
 tratarlo al añadir los helpers.
+
+> Resuelto en la **feature 32**: `src/lib/api.ts` exporta
+> `adminErrorMessage(res: ApiFailure)`, que traduce el `403` a `FORBIDDEN_ERROR` y
+> devuelve `res.error` en cualquier otro caso. Úsalo al pintar errores de los
+> endpoints privados en vez de repetir la comprobación de `status`.
 
 **El rol `editor` no puede escribir imágenes.** Las tres rutas de escritura de
 imágenes exigen `requireRole('admin')` a secas, a diferencia del CRUD de artículos
@@ -395,49 +466,15 @@ id, seccion, filename, mime_type, size_bytes, alt, orden, created_at, updated_at
 - ⚠️ El archivo se sube **completo** antes de validar `seccion` (multer corre antes
   del handler), así que un `422` por `seccion` llega tras consumir el ancho de banda.
 
-### 10.3 Usuarios — contrato en vuelo (leído el 2026-07-29, sin commitear)
+### 10.3 Usuarios — **movido al §4 bis**
 
-> **Actualización.** Cuando se escribió §10.2 el backend no tenía **ningún**
-> endpoint de usuarios. Horas después `src/usersRouter.js` ya existe con los cinco
-> endpoints. Sigue **sin commitear** y el backend avisará de que está terminado
-> creando un archivo **`API_READY.md`** (que a 2026-07-29 **no existe todavía**).
-> Tratar esto como **contrato provisional**: es código en vuelo que puede cambiar.
+El contrato de usuarios dejó de ser «en maquetación» el 2026-07-31: la
+**feature 32** lo cableó y su descripción vigente (rutas, tipos, errores, las tres
+asimetrías con leads y las dos reglas del borrado) vive ahora en **§4 bis**, junto
+al resto de endpoints que el front consume de verdad. No dupliques aquí nada de
+aquello: si algo cambia, se cambia en §4 bis.
 
-| Método | Ruta | Respuesta OK |
-|---|---|---|
-| `GET` | `/api/admin/users` | `200 { rows }` — **sin paginación, sin `total`** |
-| `GET` | `/api/admin/users/:id` | `200 { user }` |
-| `POST` | `/api/admin/users` | `201 { user }` |
-| `PATCH` | `/api/admin/users/:id` | `200 { user }` |
-| `DELETE` | `/api/admin/users/:id` | `204` sin cuerpo |
-
-Las cinco pasan por `adminGuard`. El listado viene como **`{ rows }` sin
-paginación** — se resolvió la duda que §10.3 dejaba abierta: sigue el patrón de
-artículos e imágenes, **no** el de leads.
-
-Columnas expuestas (`PUBLIC_COLS` en `src/users.js:19`), sin `SELECT *`:
-
-```
-id, email, name, role, created_at
-```
-
-`password_hash` **nunca** sale por la API. `password` **sí** se envía en el `POST`
-(obligatorio) y en el `PATCH` (opcional).
-
-Errores, con `field` cuando aplica:
-
-- `422` `{ error: 'email requerido', field: 'email' }` · ídem `password` · ídem `role`.
-- `422` `{ error: 'Nada que actualizar: se esperaba email, name, role o password' }`.
-- `409` `{ error: 'El email ya está en uso', field: 'email' }`.
-- `404` usuario no encontrado (también para un `:id` no numérico o desbordado).
-
-**Dos reglas de negocio que la UI debe respetar, no descubrir a base de 409:**
-
-1. **`409` — «No puedes eliminar tu propio usuario».** La pantalla debe deshabilitar
-   el borrado de la fila del usuario en sesión (`useOutletContext<AdminUser>()` ya
-   da su `id`), no ofrecerlo y fallar.
-2. **`409` — «No puedes eliminar al último usuario con rol admin».** Hay que
-   contemplar el caso en el copy: si queda un solo `admin`, su borrado se rechaza.
+Se conservan abajo, como registro, las notas de cuando el router estaba en vuelo.
 
 ### 10.3.1 Usuarios — lo que decía antes (histórico)
 

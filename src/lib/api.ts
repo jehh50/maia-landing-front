@@ -269,6 +269,91 @@ export function deleteAdminArticle(id: number | string) {
   return apiJson<{ ok: true }>(`/api/admin/articles/${id}`, { method: 'DELETE' });
 }
 
+// --- Admin: usuarios (feature 32) ---
+
+/**
+ * Fila de `users` tal como la expone el backend: exactamente las columnas de su
+ * `PUBLIC_COLS` (`id, email, name, role, created_at`).
+ *
+ * `password_hash` **nunca** sale por la API y por eso no se modela aquí. El
+ * resto de campos se derivan de `AdminUser` en vez de duplicarse.
+ */
+export interface AdminUserRow extends AdminUser {
+  created_at: string;
+}
+
+/**
+ * `GET /api/admin/users` responde `{ rows }` **sin paginación**: no hay `total`
+ * ni `limit`/`offset`, ni acepta parámetros de query (docs/api-contract.md §4
+ * bis). Sigue el patrón de artículos e imágenes, no el de leads.
+ */
+export interface UsersListResponse {
+  rows: AdminUserRow[];
+}
+
+/** Campos escribibles de un usuario. `password` viaja en claro y solo de subida. */
+export interface UserInput {
+  email: string;
+  name: string;
+  role: AdminUser['role'];
+  password?: string;
+}
+
+/** Alta: `password` es obligatorio. */
+export type UserCreateInput = UserInput & { password: string };
+
+/** Edición: todo opcional; omitir `password` conserva la actual. */
+export type UserPatchInput = Partial<UserInput>;
+
+/**
+ * Mensaje presentable de un fallo de los endpoints privados de admin.
+ *
+ * `requireRole` del backend rompe la forma habitual del error: en un `403`
+ * responde `{ ok: false, error: 'forbidden', message: '…' }`, así que el `error`
+ * que llega a `normalizeApi` es el token `'forbidden'` y no un texto para el
+ * usuario (docs/api-contract.md §10.1). Sin esto, un `editor` que abre Usuarios
+ * lee literalmente «forbidden».
+ */
+export const FORBIDDEN_ERROR = 'No tienes permisos para gestionar esta sección.';
+
+export function adminErrorMessage(res: ApiFailure): string {
+  return res.status === 403 ? FORBIDDEN_ERROR : res.error;
+}
+
+export function listAdminUsers() {
+  return apiJson<UsersListResponse>('/api/admin/users', { method: 'GET' });
+}
+
+export function getAdminUser(id: number | string) {
+  return apiJson<{ user: AdminUserRow }>(`/api/admin/users/${id}`, { method: 'GET' });
+}
+
+export function createAdminUser(payload: UserCreateInput) {
+  return apiJson<{ user: AdminUserRow }>('/api/admin/users', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAdminUser(id: number | string, patch: UserPatchInput) {
+  return apiJson<{ user: AdminUserRow }>(`/api/admin/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+/**
+ * `DELETE` responde **`204` sin cuerpo**, así que `apiJson` devuelve
+ * `data: null` y `normalizeApi(..., 'ok')` lo leería como fallo. Se sintetiza
+ * el `{ ok: true }` que el 204 no trae, y **solo cuando la respuesta fue 2xx**:
+ * un error sin body sigue siendo un error (a diferencia del
+ * `if (ok || data == null)` de `ArticlesList`, que sí los confunde).
+ */
+export async function deleteAdminUser(id: number | string): Promise<ApiResult<{ ok: true }>> {
+  const res = await apiJson<{ ok: true }>(`/api/admin/users/${id}`, { method: 'DELETE' });
+  return res.ok && res.data == null ? { ...res, data: { ok: true } } : res;
+}
+
 // --- Blog público (feature 7) ---
 // Subset del Article expuesto en endpoints públicos (status='published').
 // Reutiliza el shape de AdminArticle.

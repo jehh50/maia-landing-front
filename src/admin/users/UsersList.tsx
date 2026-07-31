@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
   Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
@@ -8,52 +8,65 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import type { AdminUser } from '../../lib/api';
+import {
+  adminErrorMessage, deleteAdminUser, listAdminUsers, normalizeApi,
+  type AdminUser, type AdminUserRow,
+} from '../../lib/api';
 import { tokens } from '../../theme/tokens';
 import UserDialog from './UserDialog';
-import { deleteMockUser, listMockUsers, type MockUser } from './mockUsers';
 
 /**
- * Administración de usuarios del panel (feature 28).
+ * Administración de usuarios del panel (maquetada en la feature 28, cableada a
+ * `/api/admin/users` en la feature 32).
  *
- * Maqueta: los datos salen de `./mockUsers`, no del backend. Ver el TODO de ese
- * módulo para el cableado pendiente. El listado real responde `{ rows }` sin
- * paginación, así que aquí tampoco se pinta `TablePagination`.
+ * Dos cosas que la separan de `LeadsList` y que vienen del contrato
+ * (docs/api-contract.md §4 bis), no de una preferencia:
+ *
+ * - El listado responde `{ rows }` **sin paginación**, así que aquí no se pinta
+ *   `TablePagination`.
+ * - `GET /api/admin/users` **no acepta ningún parámetro de query**: devuelve
+ *   todos los usuarios ordenados por `id ASC`. Por eso la búsqueda filtra en
+ *   cliente sobre las filas ya cargadas, en vez de mandar un `?q=` que el
+ *   backend ignoraría.
  */
 export default function UsersList() {
   const sessionUser = useOutletContext<AdminUser>();
   const sessionUserId = sessionUser?.id ?? null;
 
-  const [rows, setRows]         = useState<MockUser[]>([]);
+  const [rows, setRows]         = useState<AdminUserRow[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
   const [q, setQ]               = useState('');
-  const [editing, setEditing]   = useState<MockUser | null>(null);
+  const [editing, setEditing]   = useState<AdminUserRow | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [toDelete, setToDelete] = useState<MockUser | null>(null);
+  const [toDelete, setToDelete] = useState<AdminUserRow | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await listMockUsers({ q: q.trim() || undefined });
+    const res = await normalizeApi(listAdminUsers(), 'rows', 'No pudimos cargar los usuarios');
     if (res.ok) {
       setRows(res.data.rows);
     } else {
-      setError(res.error);
+      setError(adminErrorMessage(res));
       setRows([]);
     }
     setLoading(false);
-  }, [q]);
+  }, []);
 
-  // Debounce de búsqueda, igual que en LeadsList.
-  useEffect(() => {
-    const id = setTimeout(load, 300);
-    return () => clearTimeout(id);
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
+
+  // Filtrado en cliente: el endpoint no admite búsqueda (ver el bloque de arriba).
+  const visible = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return rows;
+    return rows.filter(u =>
+      u.email.toLowerCase().includes(term) || (u.name || '').toLowerCase().includes(term));
+  }, [rows, q]);
 
   const openCreate = () => { setEditing(null); setFormOpen(true); };
-  const openEdit = (u: MockUser) => { setEditing(u); setFormOpen(true); };
+  const openEdit = (u: AdminUserRow) => { setEditing(u); setFormOpen(true); };
 
   const onSaved = async () => {
     setFormOpen(false);
@@ -61,14 +74,20 @@ export default function UsersList() {
     await load();
   };
 
+  /**
+   * La fila propia ya viene deshabilitada, pero el segundo `409` del backend
+   * («No puedes eliminar al último usuario con rol admin») solo se puede
+   * conocer por respuesta: se muestra su mensaje tal cual.
+   */
   const confirmDelete = async () => {
     if (!toDelete) return;
     setDeleting(true);
-    const res = await deleteMockUser(toDelete.id, sessionUserId);
+    const res = await normalizeApi(
+      deleteAdminUser(toDelete.id), 'ok', 'No pudimos eliminar el usuario');
     setDeleting(false);
     setToDelete(null);
     if (res.ok) await load();
-    else setError(res.error);
+    else setError(adminErrorMessage(res));
   };
 
   return (
@@ -113,10 +132,10 @@ export default function UsersList() {
             {loading && (
               <TableRow><TableCell colSpan={5} align="center" sx={{ py: 4 }}><CircularProgress size={20} /></TableCell></TableRow>
             )}
-            {!loading && rows.length === 0 && (
+            {!loading && visible.length === 0 && (
               <TableRow><TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>Sin usuarios.</TableCell></TableRow>
             )}
-            {!loading && rows.map(u => {
+            {!loading && visible.map(u => {
               const isSelf = u.id === sessionUserId;
               return (
                 <TableRow key={u.id} hover data-testid={`user-row-${u.id}`}>
