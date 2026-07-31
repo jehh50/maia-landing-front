@@ -156,7 +156,13 @@ Secciones actualmente comentadas en `App.tsx:38-47`: `Trust`, `ROI`, `Testimonia
 | `apiJson<T>` | `credentials: 'include'` | Auth y endpoints `/api/admin/*` |
 | `publicJson<T>` | `credentials: 'omit'` | Blog público (`/api/articles`) |
 
-Todos devuelven la misma forma `{ ok, status, data }` y nunca lanzan: el `res.json()` va en `try/catch` y `data` cae a `null` si no hay body. La consecuencia es que **cada llamador discrimina el resultado con `'x' in data`** — un patrón repetido en todo el admin y las páginas del blog.
+Todos devuelven la misma forma `{ ok, status, data }` y nunca lanzan: el `res.json()` va en `try/catch` y `data` cae a `null` si no hay body.
+
+Sobre esa forma cruda hay un normalizador, **`normalizeApi`** (feature 20), que convierte el resultado en la unión discriminada `{ ok: true, status, data } | { ok: false, status, error, field? }`, para no repetir el `'x' in data` en cada llamador. El `field` opcional lo añadió la **feature 31**: es el nombre del campo que el backend rechaza en sus `422`, y permite marcar en rojo el input concreto en vez de mostrar un mensaje global.
+
+**El estado de la migración es incremental.** Usan `normalizeApi` `BlogIndex`, `LeadsList` y la pantalla de usuarios (feature 32, el primer cableado completo de un CRUD). El resto —`AdminGuard`, `Login`, `ArticlesList`, `ArticleEdit`, `BlogArticle`, `sections/Blog` y `ContactModal`— sigue discriminando a mano con `'x' in data`. Esa es la deuda de adopción que documenta §10: el helper existe, lo que falta es adoptarlo.
+
+Detalle del contrato de cada endpoint en `docs/api-contract.md`.
 
 Endpoints consumidos:
 
