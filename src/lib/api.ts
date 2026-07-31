@@ -601,3 +601,145 @@ export async function deleteAdminImage(id: string | number): Promise<ApiResult<{
   const res = await apiJson<{ ok: true }>(`/api/admin/images/${id}`, { method: 'DELETE' });
   return res.ok && res.data == null ? { ...res, data: { ok: true } } : res;
 }
+
+// --- Precios (feature 34) ---
+// Contrato en docs/api-contract.md §4 quater. Segundo recurso con dos
+// transportes, y con una asimetría propia: **no existe `GET /api/admin/precios`**
+// (el servidor responde 404, no 401), así que el LISTADO del panel sale del
+// endpoint público `GET /api/precios`. Solo el detalle y las tres escrituras
+// viven bajo `/api/admin/precios[/:id]`.
+
+/**
+ * Objeto `plan` tal como lo devuelve la API: los 14 campos de su `toPlan()`.
+ *
+ * `id` es **string**: el backend devuelve el `BIGSERIAL` sin castear, y un plan
+ * con id por encima de `Number.MAX_SAFE_INTEGER` se corrompería al convertirlo.
+ *
+ * Ojo con los dos pares de campos:
+ *
+ * - `precio_anual` y `ahorro_anual` son **derivados**: el backend los calcula en
+ *   cada respuesta y **no se pueden escribir** (por eso `PlanInput` los omite).
+ * - `precio_mensual` y `descuento_pct` llegan como **`0`** en un plan Custom, no
+ *   como `null`: la columna guarda `NULL` pero `toNumber()` lo convierte en `0`.
+ *   **Un plan a convenir se reconoce por `es_custom`, nunca por un nulo**, o se
+ *   acaba pintando «$0» (discrepancia verificada, §4 quater).
+ */
+export interface AdminPlan {
+  id: string;
+  nombre: string;
+  precio_mensual: number;
+  descuento_pct: number;
+  /** Derivado de solo lectura. `null` si `es_custom`. */
+  precio_anual: number | null;
+  /** Derivado de solo lectura. `null` si `es_custom`. */
+  ahorro_anual: number | null;
+  vinetas: string[];
+  vinetas_tachadas: string[];
+  destacado: boolean;
+  trial_texto: string | null;
+  es_custom: boolean;
+  orden: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** `GET /api/precios` responde `{ rows }` **sin paginación**, con orden fijo `orden ASC, id ASC`. */
+export interface PlanesListResponse {
+  rows: AdminPlan[];
+}
+
+/**
+ * Campos escribibles de un plan: exactamente los `CAMPOS_EDITABLES` del backend.
+ *
+ * Se **deriva** de `AdminPlan` quitando los de auditoría y, sobre todo, los dos
+ * derivados: así «no enviar nunca `precio_anual` ni `ahorro_anual`» deja de ser
+ * una disciplina del consumidor y pasa a ser un error de compilación.
+ *
+ * `precio_mensual` y `descuento_pct` son **opcionales y nunca `null`**: el
+ * backend los valida con `parseDecimal`, que rechaza `null` con un
+ * `422 { error: 'precio_mensual debe ser un número', field: 'precio_mensual' }`.
+ * En un plan a convenir **se omiten**, y entonces el `POST` aplica su default
+ * (`0`) y el `PATCH` conserva el valor guardado.
+ */
+export type PlanInput =
+  & Omit<AdminPlan, 'id' | 'created_at' | 'updated_at' | 'precio_anual' | 'ahorro_anual' | 'precio_mensual' | 'descuento_pct'>
+  & Partial<Pick<AdminPlan, 'precio_mensual' | 'descuento_pct'>>;
+
+/** Edición: todo opcional. Un `PATCH` sin ningún campo editable responde `422`. */
+export type PlanPatchInput = Partial<PlanInput>;
+
+/**
+ * Aritmética exacta del backend (`src/precios.js:64-71`), para la vista previa
+ * del formulario: la lista pinta los derivados que ya vienen en la respuesta.
+ *
+ * `precio_anual` es el **precio mensual facturando anualmente**, no el total del
+ * año: `19` al 10 % da `17`, y de ahí el «Ahorras $24/año» de la landing. El
+ * `Math.round()` es decisión deliberada del backend.
+ */
+export function calcularPrecioAnual(precioMensual: number, descuentoPct: number): number {
+  return Math.round(precioMensual * (1 - descuentoPct / 100));
+}
+
+export function calcularAhorroAnual(precioMensual: number, precioAnual: number): number {
+  return Math.round((precioMensual - precioAnual) * 12);
+}
+
+/** Los dos derivados a la vez, con la regla de `es_custom` incluida. */
+export function derivarPrecios(
+  plan: { precio_mensual: number; descuento_pct: number; es_custom: boolean },
+): Pick<AdminPlan, 'precio_anual' | 'ahorro_anual'> {
+  if (plan.es_custom) return { precio_anual: null, ahorro_anual: null };
+  const precioAnual = calcularPrecioAnual(plan.precio_mensual, plan.descuento_pct);
+  return { precio_anual: precioAnual, ahorro_anual: calcularAhorroAnual(plan.precio_mensual, precioAnual) };
+}
+
+/** Importe de la UI a partir de un `NUMERIC` del contrato: «$19», «$1,999». */
+export function formatMoneda(importe: number): string {
+  return `$${importe.toLocaleString('es-MX')}`;
+}
+
+/** Longitud máxima de `nombre` (`NOMBRE_MAX` del backend, que trunca al pasarse). */
+export const PLAN_NOMBRE_MAX = 120;
+
+/** Longitud máxima de `trial_texto` (`TRIAL_MAX` del backend, que también trunca). */
+export const PLAN_TRIAL_MAX = 200;
+
+/**
+ * Listado de planes. Es el endpoint **público**: `GET /api/admin/precios` **no
+ * existe** —responde `404`, no `401`— porque el router solo declara el `GET`
+ * sobre `/:id`. Lo consume tanto el panel como la landing. Sin paginación y sin
+ * cookie.
+ */
+export function listPlanes() {
+  return publicJson<PlanesListResponse>('/api/precios', { method: 'GET' });
+}
+
+/** Detalle: este sí es privado y solo de rol `admin`. */
+export function getAdminPlan(id: string | number) {
+  return apiJson<{ plan: AdminPlan }>(`/api/admin/precios/${id}`, { method: 'GET' });
+}
+
+export function createAdminPlan(payload: PlanInput) {
+  return apiJson<{ plan: AdminPlan }>('/api/admin/precios', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAdminPlan(id: string | number, patch: PlanPatchInput) {
+  return apiJson<{ plan: AdminPlan }>(`/api/admin/precios/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+/**
+ * `DELETE` responde `204` sin cuerpo: mismo molde que `deleteAdminUser` y
+ * `deleteAdminImage`. Se sintetiza el `{ ok: true }` que el 204 no trae y
+ * **solo si la respuesta fue 2xx**, para que un error sin body siga siendo un
+ * error.
+ */
+export async function deleteAdminPlan(id: string | number): Promise<ApiResult<{ ok: true }>> {
+  const res = await apiJson<{ ok: true }>(`/api/admin/precios/${id}`, { method: 'DELETE' });
+  return res.ok && res.data == null ? { ...res, data: { ok: true } } : res;
+}

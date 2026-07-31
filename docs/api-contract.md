@@ -370,6 +370,136 @@ del handler), así que un `422` por `seccion` llega tras consumir el ancho de ba
 ⚠️ **El rol `editor` no puede escribir imágenes.** Las tres rutas de escritura
 exigen `requireRole('admin')` a secas, a diferencia del CRUD de artículos.
 
+## 4 quater. Precios (`/api/precios` + `/api/admin/precios`) — **vigente**
+
+Consumidos desde la **feature 34**. Tabla `planes`; el objeto `plan` (`toPlan()`,
+`src/precios.js:91-116`) tiene **exactamente estos 14 campos**:
+
+```
+id, nombre, precio_mensual, descuento_pct, precio_anual, ahorro_anual,
+vinetas, vinetas_tachadas, destacado, trial_texto, es_custom, orden,
+created_at, updated_at
+```
+
+| Método | Ruta | Helper | Auth | OK |
+|---|---|---|---|---|
+| `GET` | `/api/precios` | `listPlanes()` | **pública** | `200 { rows: AdminPlan[] }` |
+| `GET` | `/api/admin/precios/:id` | `getAdminPlan(id)` | cookie, **solo `admin`** | `200 { plan }` |
+| `POST` | `/api/admin/precios` | `createAdminPlan(input)` | cookie, **solo `admin`** | `201 { plan }` |
+| `PATCH` | `/api/admin/precios/:id` | `updateAdminPlan(id, patch)` | cookie, **solo `admin`** | `200 { plan }` |
+| `DELETE` | `/api/admin/precios/:id` | `deleteAdminPlan(id)` | cookie, **solo `admin`** | `204` **sin cuerpo** |
+| ~~`GET`~~ | ~~`/api/admin/precios`~~ | — | — | **NO EXISTE** (ver aviso) |
+
+> ⚠️ **No hay listado bajo `/api/admin/`.** Verificado contra el servidor vivo el
+> 2026-07-31 y en la fuente (`preciosRouter.js` solo declara el `GET` sobre
+> `/:id`): `GET /api/admin/precios` responde **`404`**, no `401` — la ruta no
+> existe, no es un problema de sesión. **Para listar planes en el panel se usa el
+> endpoint público `GET /api/precios`**, igual que la landing, vía `publicJson`
+> (`credentials: 'omit'`). Misma asimetría que imágenes (§4 ter), pero aquí ni
+> siquiera hay un listado privado al que caer. Responde `{ rows }` **sin
+> paginación**, con orden fijo `orden ASC, id ASC`, así que la pantalla de precios
+> **no** lleva `TablePagination`.
+
+```ts
+interface AdminPlan {
+  id: string;                 // BIGSERIAL sin castear: llega como string
+  nombre: string;
+  precio_mensual: number;     // 0 en un plan Custom, NO null (ver discrepancia)
+  descuento_pct: number;
+  precio_anual: number | null;   // DERIVADO, solo lectura. null si es_custom
+  ahorro_anual: number | null;   // DERIVADO, solo lectura. null si es_custom
+  vinetas: string[]; vinetas_tachadas: string[];   // columnas JSONB
+  destacado: boolean;
+  trial_texto: string | null;
+  es_custom: boolean;
+  orden: number;
+  created_at: string; updated_at: string;
+}
+
+// Campos escribibles = los CAMPOS_EDITABLES del backend. Los dos derivados se
+// OMITEN del tipo: enviarlos no compila.
+type PlanInput =
+  & Omit<AdminPlan, 'id' | 'created_at' | 'updated_at' | 'precio_anual' | 'ahorro_anual'
+                  | 'precio_mensual' | 'descuento_pct'>
+  & Partial<Pick<AdminPlan, 'precio_mensual' | 'descuento_pct'>>;
+
+type PlanPatchInput = Partial<PlanInput>;
+```
+
+### Los dos campos derivados, y su aritmética exacta (`src/precios.js:64-71`)
+
+- `precio_anual = Math.round(precio_mensual * (1 - descuento_pct / 100))`.
+  **Es el precio mensual facturando anualmente, no el total del año.**
+- `ahorro_anual = Math.round((precio_mensual - precio_anual) * 12)`.
+- **Si `es_custom` es `true`, ambos son `null`.** Ese es el caso `Enterprise`.
+
+Reproduce la aritmética que la landing muestra hoy: `(19 − 17) × 12 = 24`, el
+«Ahorras $24/año» de `Pricing.tsx`. El `Math.round()` es decisión deliberada del
+backend. `src/lib/api.ts` lo reimplementa en `derivarPrecios()` **solo** para la
+vista previa del formulario: el listado pinta los derivados que ya vienen en la
+respuesta.
+
+**`precio_anual` y `ahorro_anual` no se editan y no se envían nunca**, ni en el
+`POST` ni en el `PATCH`. Se editan `precio_mensual` y `descuento_pct`, y los otros
+dos se muestran calculados. Un formulario que los ofrezca como campos editables
+está contradiciendo el modelo; un helper que los mande está inventando campos de
+escritura que no existen. El `PATCH` los ignora, y un body que **solo** los traiga
+responde `422 { error: 'Nada que actualizar: se esperaba …' }` sin `field`.
+
+> ⚠️ **Discrepancia entre `API_READY.md` y el código del backend, verificada en la
+> fuente.** El handoff dice que en un plan Custom vienen en `null` **tres**
+> campos: `precio_mensual`, `precio_anual` y `ahorro_anual`. El código solo anula
+> **dos** (`src/precios.js:97-98`); `precio_mensual` pasa por `toNumber()`
+> (`:48-51`), que convierte `null` en **`0`**.
+>
+> **Regla segura para el front: no te fíes de los nulos, comprueba `es_custom`
+> antes de pintar cualquier cifra.** Fiarse del nulo pinta «$0» en el plan
+> Enterprise, justo lo que el handoff dice querer evitar. Vale también para los
+> formularios: volcar ese `0` en el campo «precio mensual» reintroduce el «$0» por
+> la puerta de atrás.
+
+### Un plan a convenir **omite** las cifras, no las manda en `null`
+
+`validarPlan` pasa `precio_mensual` y `descuento_pct` por `parseDecimal`
+(`preciosRouter.js:47-54`), que **rechaza `null`**: mandar
+`{ precio_mensual: null }` devuelve
+`422 { error: 'precio_mensual debe ser un número', field: 'precio_mensual' }`.
+
+Lo correcto es **omitir ambos campos** cuando `es_custom` es `true`: un campo
+`undefined` se salta la validación, el `POST` aplica el default de `withDefaults`
+(`0`) y el `PATCH` conserva lo guardado. Por eso `PlanInput` los declara
+opcionales y **nunca nulables**.
+
+**Límites y normalización del backend:** `nombre` obligatorio en el `POST` y
+truncado a 120 (`PLAN_NOMBRE_MAX`); `trial_texto` truncado a 200
+(`PLAN_TRIAL_MAX`) y nulable; `precio_mensual` entre `0` y `99999999.99`
+(`NUMERIC(10,2)`); `descuento_pct` entre `0` y `100`; `orden` entero ≥ 0, con
+literalmente el mismo mensaje que imágenes (`ORDEN_ERROR`); `vinetas` y
+`vinetas_tachadas` deben ser arrays de strings (las columnas son `JSONB` y
+aceptarían cualquier cosa sin esta validación).
+
+Errores:
+
+| Status | Body | Nota |
+|---|---|---|
+| `422` | `{ error, field }` con `field` en `nombre` \| `precio_mensual` \| `descuento_pct` \| `vinetas` \| `vinetas_tachadas` \| `destacado` \| `es_custom` \| `orden` | `trial_texto` **no** aparece: se trunca, no se rechaza |
+| `422` | `{ error: 'Nada que actualizar: se esperaba …' }` | `PATCH` sin ningún campo editable; sin `field` |
+| `404` | `{ error: 'Plan no encontrado' }` | también con un `:id` no numérico o desbordado |
+| `403` | `{ ok: false, error: 'forbidden', message }` | forma anómala, §10.1 → `adminErrorMessage` |
+
+⚠️ **`destacado` y `es_custom` llegan como `field` pero son `Switch` en la UI**:
+no tienen `helperText` donde pintar el mensaje. El consumidor los deja caer al
+aviso global en vez de escribirlos en un slot que nadie renderiza — es la razón de
+que el mapeo `field → input` sea una **tabla explícita** y no un cast (§1).
+
+El `DELETE` responde `204` sin cuerpo, así que `deleteAdminPlan` sintetiza el
+`{ ok: true }` con el mismo molde que `deleteAdminUser` (§4 bis, asimetría 3).
+
+⚠️ **Las tablas están creadas pero VACÍAS y no hay seed**: `GET /api/precios`
+responde `200 { "rows": [] }` hasta que se carguen planes **desde el panel**. Por
+eso la pantalla de admin ofrece alta y borrado además de edición: sin `POST` no
+hay forma de que la landing (feature 35) llegue a tener precios que mostrar.
+
 ## 5. Admin — artículos (`/api/admin/articles`)
 
 Privados (`credentials: 'include'`).
@@ -480,12 +610,12 @@ No se mockea `src/lib/api.ts`: los tests interceptan `globalThis.fetch` con
 
 ## 10. Recursos en maquetación (usuarios, imágenes, precios)
 
-> **Usuarios ya no está aquí (feature 32 → §4 bis) e imágenes tampoco
-> (feature 33 → §4 ter).** Lo único que queda en maquetación es **precios**, que
-> las features 27-30 maquetaron con **datos mock locales** y **sin tocar
-> `src/lib/api.ts`**, por decisión explícita del humano (2026-07-29). Existe para
-> que el cableado restante (feature 34) sea mecánico y para dejar por escrito qué
-> está acordado y qué no.
+> **Ya no queda nada en maquetación.** Usuarios se cableó en la feature 32
+> (→ §4 bis), imágenes en la 33 (→ §4 ter) y precios en la 34 (→ §4 quater). Las
+> features 27-30 maquetaron los tres con **datos mock locales** y **sin tocar
+> `src/lib/api.ts`**, por decisión explícita del humano (2026-07-29); esta sección
+> se conserva como registro de qué se acordó y qué se dio por supuesto antes de
+> cablear, no como contrato vigente.
 >
 > Estado del backend verificado en `/var/www/html/maia-landing-back` el 2026-07-29;
 > informe completo con rutas y líneas en `progress/explore_backend_cruds.md`.
@@ -494,7 +624,7 @@ No se mockea `src/lib/api.ts`: los tests interceptan `globalThis.fetch` con
 |---|---|---|
 | **Imágenes** | Los 5 existen | **Sí, ya cableado (feature 33) — contrato en §4 ter** |
 | **Usuarios** | Los 5 existen | **Sí, ya cableado (feature 32) — contrato en §4 bis** |
-| **Precios** | **Nada**: ni tabla, ni módulo, ni modelo de datos decidido | No; propuesta nuestra, sin confirmar |
+| **Precios** | Los 5 existen (uno de ellos, el listado, **público**) | **Sí, ya cableado (feature 34) — contrato en §4 quater** |
 
 ### 10.1 Dos avisos que afectan al código del front cuando se cablee
 
@@ -569,17 +699,22 @@ poder eliminar publicaciones, pero hoy `DELETE /api/admin/articles/:id` sigue
 exigiendo `admin` (ver §5). Cuando el backend lo relaje, empezará a funcionar sin
 cambios en el front. **No conviene ocultar ese botón por rol de forma permanente.**
 
-### 10.4 Precios — contrato REAL (commit `f878d0b` del backend, 2026-07-30)
+### 10.4 Precios — **movido al §4 quater**
 
-> **Esta sección sustituye por completo al mapeo que este documento proponía
-> antes.** Aquella propuesta se escribió cuando en el backend no existía nada de
-> precios; el backend ya commiteó su CRUD y **su modelo difiere del propuesto en
-> puntos de fondo**. Lo que sigue está leído de la fuente, no inferido.
->
-> Sigue **sin** existir `API_READY.md`, así que el backend aún no lo da por
-> cerrado.
+El contrato de precios dejó de ser «en maquetación» el 2026-07-31: la
+**feature 34** lo cableó y su descripción vigente (las cinco rutas, los 14 campos,
+los dos derivados con su aritmética, la asimetría del listado público, la
+discrepancia del plan Custom, los límites y la tabla de errores) vive ahora en
+**§4 quater**, junto al resto de endpoints que el front consume de verdad. No
+dupliques aquí nada de aquello: si algo cambia, se cambia en §4 quater.
 
-**Errores de la propuesta anterior, para que nadie los reintroduzca:**
+Se conserva abajo, como registro, lo que se creyó antes de cablear.
+
+#### 10.4.1 Errores de la propuesta original, para que nadie los reintroduzca
+
+Esta sección llegó a proponer un mapeo inventado, escrito cuando en el backend no
+existía nada de precios. El contrato real (commit `f878d0b`, leído de la fuente el
+2026-07-30) difiere en puntos de fondo:
 
 | Se propuso | La realidad |
 |---|---|
@@ -590,85 +725,32 @@ cambios en el front. **No conviene ocultar ese botón por rol de forma permanent
 | `Enterprise` como `monthly: 0` = «a convenir» | **`es_custom: boolean`**, un campo propio |
 | `features` / `dim` como `string[]` sueltos | **`vinetas` / `vinetas_tachadas`, columnas `JSONB`** |
 
-| Método | Ruta | Auth | Respuesta OK |
-|---|---|---|---|
-| `GET` | `/api/precios` | pública | `200 { rows }` |
-| `GET` | `/api/admin/precios/:id` | cookie + admin | `200 { plan }` |
-| ~~`GET`~~ | ~~`/api/admin/precios`~~ | — | **NO EXISTE** (ver aviso) |
-| `POST` | `/api/admin/precios` | cookie + admin | `201 { plan }` |
-| `PATCH` | `/api/admin/precios/:id` | cookie + admin | `200 { plan }` |
-| `DELETE` | `/api/admin/precios/:id` | cookie + admin | `204` |
+#### 10.4.2 Lo que se anticipó bien, y lo que no
 
-> ⚠️ **No hay listado bajo `/api/admin/`.** Verificado contra el servidor vivo el
-> 2026-07-31: `GET /api/admin/precios` responde **`404`**, no `401` — la ruta no
-> existe, no es un problema de sesión. El router solo declara `GET` sobre
-> `/:id`. **Para listar planes en el panel hay que usar el endpoint público
-> `GET /api/precios`**, a diferencia de usuarios, imágenes y artículos, que sí
-> tienen su listado bajo `/api/admin/*`. `API_READY.md` es coherente con esto (su
-> tabla lista solo `POST/PATCH/DELETE` para precios), pero la asimetría es fácil
-> de pasar por alto y cuesta un rato de depuración contra un 404 que parece de
-> autenticación.
+Se anticiparon correctamente la asimetría del listado (el `404` de
+`GET /api/admin/precios`, verificado contra el servidor vivo), el `id` como
+**string** (`BIGSERIAL` sin castear), los precios como `number` y no como
+`"19.00"`, y la discrepancia del plan Custom (`precio_mensual: 0`, no `null`).
 
-**Objeto `plan`** (`toPlan()`, `src/precios.js:91-116`) — 14 campos:
+Lo que **no** se anticipó y salió al leer la fuente al cablear: que
+`precio_mensual: null` **se rechaza con un `422`** (`parseDecimal`), así que un
+plan a convenir tiene que **omitir** las cifras en vez de mandarlas nulas
+(detalle en §4 quater).
 
-```
-id, nombre, precio_mensual, descuento_pct, precio_anual, ahorro_anual,
-vinetas, vinetas_tachadas, destacado, trial_texto, es_custom, orden,
-created_at, updated_at
-```
+Siguen vigentes dos datos de contexto que no son contrato:
 
-**Los dos campos derivados, y su aritmética exacta** (`src/precios.js:54-70`):
-
-- `precio_anual = Math.round(precio_mensual * (1 - descuento_pct / 100))`.
-  **Es el precio mensual facturando anualmente, no el total del año.**
-- `ahorro_anual = Math.round((precio_mensual - precio_anual) * 12)`.
-- **Si `es_custom` es `true`, ambos son `null`.** Ese es el caso `Enterprise`.
-
-> ⚠️ **Discrepancia entre `API_READY.md` y el código del backend, verificada en la
-> fuente el 2026-07-30.** El handoff dice que en un plan Custom vienen en `null`
-> **tres** campos: `precio_mensual`, `precio_anual` y `ahorro_anual`. El código
-> solo anula **dos**: `src/precios.js:97-98` pone a `null` `precio_anual` y
-> `ahorro_anual`, mientras `precio_mensual` pasa por `toNumber()`
-> (`src/precios.js:48-51`), que convierte `null` en **`0`**. El propio comentario
-> del código (línea 85) dice «los dos».
->
-> **Consecuencia práctica:** si la UI se fía del handoff y espera `null` en
-> `precio_mensual`, un plan Custom pintará **«$0»** — justo lo que el handoff dice
-> querer evitar («para que no se renderice "Ahorras $0/año"»).
-> **Regla segura para el front: no te fíes de los nulos, comprueba `es_custom`
-> antes de pintar cualquier cifra.** Es además lo que el propio handoff recomienda.
-
-**Otros datos que solo están en `API_READY.md`:**
-
-- **El `id` de un plan llega como string** (`"id": "1"`), no como número — es el
-  `BIGSERIAL` de Postgres sin castear. Lo mismo cabe esperar de imágenes.
-- Los **precios sí llegan como `number`** (`19`, no `"19.00"`): el backend
-  convierte los `NUMERIC` antes de responder.
 - **Las tablas están creadas pero VACÍAS y no hay seed.** `GET /api/precios` y
-  `GET /api/images` responden `200 { "rows": [] }`. Los datos se cargan desde el
-  panel de administración. Conectar la landing hoy dejaría la sección de precios y
-  el carrusel del Hero **en blanco**.
-- El servidor local es el **:3002** (no el 3001 que dice la doc del backend).
-- **El rol `editor` ya puede eliminar publicaciones**: la relajación de permisos
-  que estaba aprobada pero sin aplicar (ver §10.3) ya está en el backend.
+  `GET /api/images` responden `200 { "rows": [] }`; los datos se cargan desde el
+  panel de administración. Conectar la landing sin cargarlos antes dejaría la
+  sección de precios y el carrusel del Hero **en blanco** (features 35 y 36).
+- El servidor local es el **:3002** (no el 3001 que dice la doc del backend), y el
+  rol `editor` ya puede eliminar publicaciones (la relajación de permisos que
+  §10.3 daba por pendiente).
 
-Reproduce la aritmética que la landing ya muestra: `(19 − 17) × 12 = 24`, el
-«Ahorras $24/año» de `Pricing.tsx`. El `Math.round()` es decisión deliberada del
-backend.
-
-**Consecuencia directa para la UI del admin:** `precio_anual` y `ahorro_anual`
-**no se editan**. Se editan `precio_mensual` y `descuento_pct`, y los otros dos se
-muestran calculados. Un formulario que los ofrezca como campos editables está
-contradiciendo el modelo.
-
-**Errores:** `422 { error, field }` en validación, `404` no encontrado, `500`. El
-`field` ya llega al consumidor: la **feature 31** lo propaga en `ApiFailure`
-(ver §1), así que el formulario puede marcar en rojo el campo que el backend
-rechaza.
-
-**Guardar la relación con la landing:** `src/components/sections/Pricing.tsx` sigue
-con su array `plans` hard-coded y **no se toca**. Conectarla es una feature futura;
-el mapeo contra el contrato real sería `nombre → name`, `precio_mensual → monthly`,
-`precio_anual → annual`, `ahorro_anual → saving` (hoy un string libre en el front),
-`vinetas → features`, `vinetas_tachadas → dim`, `destacado → featured`,
-`trial_texto → trial`, y `es_custom` como el caso sin precio.
+**La relación con la landing:** `src/components/sections/Pricing.tsx` sigue con su
+array `plans` hard-coded y **no se tocó** en la feature 34. Conectarla es la
+feature 35; el mapeo contra el contrato real sería `nombre → name`,
+`precio_mensual → monthly`, `precio_anual → annual`, `ahorro_anual → saving` (hoy
+un string libre en el front), `vinetas → features`, `vinetas_tachadas → dim`,
+`destacado → featured`, `trial_texto → trial`, y `es_custom` como el caso sin
+precio.

@@ -4,29 +4,81 @@ import {
   FormControlLabel, Stack, Switch, TextField, Typography,
 } from '@mui/material';
 import {
-  derivarPrecios, formatMoneda, parseImporte, parseOrden, parseVinetas, updateMockPlan, vinetasATexto,
-  type MockPlan, type MockPlanField,
-} from './mockPrices';
+  ORDEN_ERROR, PLAN_NOMBRE_MAX, PLAN_TRIAL_MAX,
+  adminErrorMessage, createAdminPlan, derivarPrecios, formatMoneda, normalizeApi,
+  parseOrden, updateAdminPlan,
+  type AdminPlan, type PlanInput,
+} from '../../lib/api';
+
+/** Campos del formulario, que son los que tienen dónde pintar un error. */
+type FormField =
+  | 'nombre' | 'precio_mensual' | 'descuento_pct'
+  | 'vinetas' | 'vinetas_tachadas' | 'trial_texto' | 'orden';
+
+/**
+ * Mapeo **explícito** del `field` de un `422` al input de este formulario, con
+ * la tabla que estrenó la feature 33 en vez del whitelist de la 32.
+ *
+ * Son los seis campos que el backend puede rechazar **y** que tienen un input
+ * con `helperText` donde enseñar el mensaje. Faltan a propósito:
+ *
+ * - **`trial_texto`**: el backend lo trunca a `TRIAL_MAX`, no lo rechaza, así
+ *   que nunca llega como `field` (igual que `alt` en imágenes).
+ * - **`destacado` y `es_custom`**: son `Switch`, no tienen `helperText`. Un cast
+ *   crudo (`res.field as FormField`) escribiría el error en un slot que nadie
+ *   renderiza y el usuario no vería **nada**; con la tabla caen al aviso global.
+ *
+ * Lo mismo vale para cualquier nombre que el backend añada o renombre: la tabla
+ * es el sitio donde se ve que falta una entrada.
+ */
+const FIELD_BY_BACKEND: Record<string, FormField> = {
+  nombre:           'nombre',
+  precio_mensual:   'precio_mensual',
+  descuento_pct:    'descuento_pct',
+  vinetas:          'vinetas',
+  vinetas_tachadas: 'vinetas_tachadas',
+  orden:            'orden',
+};
+
+/** `''` o texto no numérico → `null`. Acepta decimales: la columna es `NUMERIC(10,2)`. */
+function parseImporte(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return null;
+  return Number(trimmed);
+}
+
+/** Una viñeta por línea; se descartan los espacios y las líneas vacías. */
+function parseVinetas(raw: string): string[] {
+  return raw.split('\n').map(v => v.trim()).filter(Boolean);
+}
+
+function vinetasATexto(vinetas: string[]): string {
+  return vinetas.join('\n');
+}
 
 interface Props {
-  /** `null` = diálogo cerrado. El padre lo monta siempre. */
-  plan: MockPlan | null;
+  /** `null` con `open` = alta; un plan = edición. */
+  plan: AdminPlan | null;
+  open: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
 
 /**
- * Edición de un plan de precios.
+ * Alta y edición de un plan de precios (`docs/api-contract.md` §4 quater).
  *
- * **`precio_anual` y `ahorro_anual` no aparecen como campos**: el backend los
- * deriva de `precio_mensual` y `descuento_pct` (`docs/api-contract.md` §10.4) y
- * no viajan en el `PATCH`. Aquí solo se muestran, recalculados en vivo con la
- * misma aritmética, para que se vea el efecto de lo que se está editando.
+ * Tres reglas del modelo que este formulario respeta:
  *
- * El descuento es **por plan**: cada uno tiene el suyo, no hay un porcentaje
- * global de la sección.
+ * - **`precio_anual` y `ahorro_anual` no aparecen como campos** y **no viajan en
+ *   el `POST` ni en el `PATCH`**: el backend los deriva de `precio_mensual` y
+ *   `descuento_pct`. `PlanInput` los omite, así que enviarlos ni compilaría.
+ *   Aquí solo se muestran, recalculados en vivo con la misma aritmética.
+ * - **Un plan a convenir omite las dos cifras**, no las manda en `null`: el
+ *   backend valida con `parseDecimal`, que rechaza `null` con un `422`.
+ * - El descuento es **por plan**: cada uno tiene el suyo, no hay un porcentaje
+ *   global de la sección.
  */
-export default function PlanEditDialog({ plan, onClose, onSaved }: Props) {
+export default function PlanEditDialog({ plan, open, onClose, onSaved }: Props) {
   const [nombre, setNombre]       = useState('');
   const [precio, setPrecio]       = useState('');
   const [descuento, setDescuento] = useState('');
@@ -36,30 +88,33 @@ export default function PlanEditDialog({ plan, onClose, onSaved }: Props) {
   const [esCustom, setEsCustom]   = useState(false);
   const [vinetas, setVinetas]     = useState('');
   const [tachadas, setTachadas]   = useState('');
-  const [errors, setErrors]       = useState<Partial<Record<MockPlanField, string>>>({});
+  const [errors, setErrors]       = useState<Partial<Record<FormField, string>>>({});
   const [saving, setSaving]       = useState(false);
   const [status, setStatus]       = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
-  // Cada apertura parte de la fila recibida.
+  // Cada apertura parte de la fila recibida, o de los valores por defecto del
+  // backend si es un alta.
   useEffect(() => {
-    if (!plan) return;
-    setNombre(plan.nombre);
-    // Un plan a convenir no guarda cifras: sus campos arrancan vacíos, no en «0».
-    setPrecio(plan.es_custom ? '' : String(plan.precio_mensual));
-    setDescuento(plan.es_custom ? '' : String(plan.descuento_pct));
-    setTrial(plan.trial_texto ?? '');
-    setOrden(String(plan.orden));
-    setDestacado(plan.destacado);
-    setEsCustom(plan.es_custom);
-    setVinetas(vinetasATexto(plan.vinetas));
-    setTachadas(vinetasATexto(plan.vinetas_tachadas));
+    if (!open) return;
+    // Un plan a convenir no muestra cifras: sus campos arrancan vacíos, no en «0».
+    // El backend devuelve `precio_mensual: 0` en esos planes, y transcribirlo
+    // aquí sería reintroducir el «$0» que `es_custom` existe para evitar.
+    setNombre(plan?.nombre ?? '');
+    setPrecio(plan && !plan.es_custom ? String(plan.precio_mensual) : '');
+    setDescuento(plan && !plan.es_custom ? String(plan.descuento_pct) : '0');
+    setTrial(plan?.trial_texto ?? '');
+    setOrden(String(plan?.orden ?? 0));
+    setDestacado(plan?.destacado ?? false);
+    setEsCustom(plan?.es_custom ?? false);
+    setVinetas(vinetasATexto(plan?.vinetas ?? []));
+    setTachadas(vinetasATexto(plan?.vinetas_tachadas ?? []));
     setErrors({});
     setStatus(null);
-  }, [plan]);
+  }, [plan, open]);
 
-  if (!plan) return null;
+  if (!open) return null;
 
-  const clearError = (field: MockPlanField) => {
+  const clearError = (field: FormField) => {
     setErrors(prev => (prev[field] ? { ...prev, [field]: undefined } : prev));
   };
 
@@ -80,43 +135,53 @@ export default function PlanEditDialog({ plan, onClose, onSaved }: Props) {
     e.preventDefault();
     setStatus(null);
 
-    const next: Partial<Record<MockPlanField, string>> = {};
-    if (!nombre.trim()) next.nombre = 'Nombre requerido';
+    const next: Partial<Record<FormField, string>> = {};
+    if (!nombre.trim()) next.nombre = 'nombre requerido';
     if (!esCustom) {
-      if (precioNum === null) next.precio_mensual = 'El precio mensual debe ser un número mayor o igual que 0';
-      if (descuentoNum === null || descuentoNum > 100) next.descuento_pct = 'El descuento debe ser un número entre 0 y 100';
+      if (precioNum === null) next.precio_mensual = 'precio_mensual debe ser un número';
+      if (descuentoNum === null || descuentoNum > 100) next.descuento_pct = 'descuento_pct debe ser un número entre 0 y 100';
     }
     const ordenNum = parseOrden(orden);
-    if (ordenNum === null) next.orden = 'El orden debe ser un entero mayor o igual que 0';
+    if (ordenNum === null) next.orden = ORDEN_ERROR;
     setErrors(next);
     if (Object.keys(next).length > 0 || ordenNum === null) return;
 
-    setSaving(true);
-    const res = await updateMockPlan(plan.id, {
+    // Las dos cifras se OMITEN en un plan a convenir. Mandarlas en `null` es un
+    // 422 seguro (`parseDecimal(null)` → `null`); omitirlas deja que el POST
+    // aplique el default del backend y que el PATCH conserve lo guardado.
+    const cifras = !esCustom && precioNum !== null && descuentoNum !== null
+      ? { precio_mensual: precioNum, descuento_pct: descuentoNum }
+      : {};
+
+    const payload: PlanInput = {
       nombre: nombre.trim(),
-      precio_mensual: esCustom ? null : precioNum,
-      descuento_pct: esCustom ? null : descuentoNum,
+      ...cifras,
       vinetas: parseVinetas(vinetas),
       vinetas_tachadas: parseVinetas(tachadas),
       destacado,
       trial_texto: trial.trim() || null,
       es_custom: esCustom,
       orden: ordenNum,
-    });
+    };
+
+    setSaving(true);
+    const res = plan
+      ? await normalizeApi(updateAdminPlan(plan.id, payload), 'plan', 'No pudimos guardar los cambios')
+      : await normalizeApi(createAdminPlan(payload), 'plan', 'No pudimos crear el plan');
     setSaving(false);
 
     if (res.ok) {
       onSaved();
       return;
     }
-    const { error, field } = res;
-    if (field) setErrors(prev => ({ ...prev, [field]: error }));
-    else       setStatus({ kind: 'error', text: error });
+    const field = res.field ? FIELD_BY_BACKEND[res.field] ?? null : null;
+    if (field) setErrors(prev => ({ ...prev, [field]: res.error }));
+    else       setStatus({ kind: 'error', text: adminErrorMessage(res) });
   };
 
   return (
     <Dialog open onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-      <DialogTitle sx={{ fontWeight: 700 }}>Editar plan</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 700 }}>{plan ? 'Editar plan' : 'Nuevo plan'}</DialogTitle>
       <Box component="form" onSubmit={onSubmit} noValidate>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 0.5 }}>
@@ -126,7 +191,7 @@ export default function PlanEditDialog({ plan, onClose, onSaved }: Props) {
               onChange={e => { setNombre(e.target.value); clearError('nombre'); }}
               error={!!errors.nombre}
               helperText={errors.nombre}
-              inputProps={{ 'aria-label': 'Nombre', autoComplete: 'off' }}
+              inputProps={{ 'aria-label': 'Nombre', autoComplete: 'off', maxLength: PLAN_NOMBRE_MAX }}
               disabled={saving}
               autoFocus
             />
@@ -143,7 +208,7 @@ export default function PlanEditDialog({ plan, onClose, onSaved }: Props) {
               label="Plan a convenir (Custom)"
             />
             <Typography variant="body2" color="text.secondary" sx={{ mt: -1 }}>
-              Un plan a convenir no guarda ninguna cifra: la landing muestra «Custom» en
+              Un plan a convenir no publica ninguna cifra: la landing muestra «Custom» en
               lugar del precio y no se calcula ningún ahorro.
             </Typography>
 
@@ -203,7 +268,7 @@ export default function PlanEditDialog({ plan, onClose, onSaved }: Props) {
               )}
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                 El precio anual y el ahorro los deriva el backend del precio mensual y del
-                descuento: no se editan ni se guardan.
+                descuento: no se editan, no se guardan y no se envían.
               </Typography>
             </Box>
 
@@ -237,7 +302,7 @@ export default function PlanEditDialog({ plan, onClose, onSaved }: Props) {
               onChange={e => { setTrial(e.target.value); clearError('trial_texto'); }}
               error={!!errors.trial_texto}
               helperText={errors.trial_texto ?? 'Opcional. Déjalo vacío para no mostrar ninguna prueba.'}
-              inputProps={{ 'aria-label': 'Texto de la prueba gratis', autoComplete: 'off' }}
+              inputProps={{ 'aria-label': 'Texto de la prueba gratis', autoComplete: 'off', maxLength: PLAN_TRIAL_MAX }}
               disabled={saving}
             />
 
@@ -255,7 +320,7 @@ export default function PlanEditDialog({ plan, onClose, onSaved }: Props) {
               control={
                 <Switch
                   checked={destacado}
-                  onChange={e => { setDestacado(e.target.checked); clearError('destacado'); }}
+                  onChange={e => setDestacado(e.target.checked)}
                   inputProps={{ 'aria-label': 'Plan destacado' }}
                   disabled={saving}
                 />
@@ -269,7 +334,7 @@ export default function PlanEditDialog({ plan, onClose, onSaved }: Props) {
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button type="submit" variant="contained" disabled={saving}>
-            {saving ? 'Guardando…' : 'Guardar cambios'}
+            {saving ? 'Guardando…' : plan ? 'Guardar cambios' : 'Crear plan'}
           </Button>
         </DialogActions>
       </Box>
