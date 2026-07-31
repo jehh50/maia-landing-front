@@ -72,6 +72,13 @@ export interface ApiFailure {
   ok: false;
   status: number;   // 0 si la petición ni siquiera obtuvo respuesta (fallo de red)
   error: string;
+  /**
+   * Campo culpable, tal cual lo nombra el backend en sus `422`/`409`
+   * (`{ error, field }`). Solo está presente si el body lo trae como string no
+   * vacío: un error sin `field` mantiene la forma `{ ok, status, error }` de
+   * antes de la feature 31.
+   */
+  field?: string;
 }
 
 export type ApiOutcome<T> = ApiSuccess<T> | ApiFailure;
@@ -82,6 +89,18 @@ function readErrorMessage(data: unknown): string | null {
   if (data && typeof data === 'object' && 'error' in data) {
     const { error } = data as { error?: unknown };
     if (typeof error === 'string' && error.trim()) return error;
+  }
+  return null;
+}
+
+// El backend acompaña algunos errores de validación con el campo culpable
+// (`{ error, field }`, ver docs/api-contract.md §10). Se lee con guardas sobre
+// `unknown`: cualquier `field` ausente o que no sea un string no vacío se
+// ignora, de modo que la forma del fallo no cambia para nadie.
+function readErrorField(data: unknown): string | null {
+  if (data && typeof data === 'object' && 'field' in data) {
+    const { field } = data;
+    if (typeof field === 'string' && field.trim()) return field;
   }
   return null;
 }
@@ -98,6 +117,8 @@ function readErrorMessage(data: unknown): string | null {
  * - `2xx` con body que contiene `key` → `{ ok: true, data }`.
  * - `2xx` sin body (o sin `key`)     → `{ ok: false, error }`, igual que hoy.
  * - `4xx`/`5xx` con `{ error }`      → `{ ok: false, error }` con ese mensaje.
+ * - `4xx`/`5xx` con `{ error, field }` → además `field`, para marcar el campo
+ *   culpable en el formulario (feature 31).
  * - `4xx`/`5xx` sin body             → `{ ok: false, error: fallbackError }`.
  * - Fallo de red (fetch rechaza)     → `{ ok: false, status: 0, error: fallbackError }`.
  *
@@ -118,7 +139,9 @@ export async function normalizeApi<T extends object, K extends keyof T & string>
   if (ok && data && typeof data === 'object' && key in data) {
     return { ok: true, status, data: data as T };
   }
-  return { ok: false, status, error: readErrorMessage(data) ?? fallbackError };
+  const failure: ApiFailure = { ok: false, status, error: readErrorMessage(data) ?? fallbackError };
+  const field = readErrorField(data);
+  return field ? { ...failure, field } : failure;
 }
 
 async function apiJson<T>(path: string, init: RequestInit = {}): Promise<ApiResult<T>> {

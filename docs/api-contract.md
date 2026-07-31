@@ -53,7 +53,7 @@ convierte cualquier resultado en una **unión discriminada**, para no repetir el
 
 ```ts
 type ApiSuccess<T> = { ok: true;  status: number; data: T };
-type ApiFailure    = { ok: false; status: number; error: string };
+type ApiFailure    = { ok: false; status: number; error: string; field?: string };
 type ApiOutcome<T> = ApiSuccess<T> | ApiFailure;
 
 normalizeApi<T, K extends keyof T & string>(
@@ -71,8 +71,29 @@ normalizeApi<T, K extends keyof T & string>(
 | `2xx` con body que contiene `key` | `{ ok: true, status, data }` |
 | `2xx` sin body, o body sin `key` | `{ ok: false, status, error }` — el `error` del body si lo trae, si no `fallbackError` |
 | `4xx`/`5xx` con `{ error: string }` | `{ ok: false, status, error }` (mensaje del backend) |
+| `4xx`/`5xx` con `{ error, field }` | `{ ok: false, status, error, field }` |
 | `4xx`/`5xx` sin body | `{ ok: false, status, error: fallbackError }` |
 | `fetch` rechaza (fallo de red) | `{ ok: false, status: 0, error: fallbackError }` |
+
+#### `field` — el campo culpable de un error de validación (feature 31)
+
+`field` es **opcional** en `ApiFailure` (`field?: string`). Existe porque el
+backend acompaña sus `422` —y algún `409`, como el email duplicado de §10.3— con
+el nombre del campo rechazado: `{ error: 'email requerido', field: 'email' }`.
+Sin él, una pantalla solo puede marcar en rojo lo que valide su propio cliente.
+
+Reglas:
+
+- **Solo aparece la clave si el body la trae** como string no vacío. Un `422` sin
+  `field`, un `5xx` sin body y un fallo de red devuelven exactamente
+  `{ ok, status, error }`, sin `field: undefined`. Un `field` que no sea string
+  (o que venga en blanco) se ignora.
+- El valor es el **nombre que usa el backend**, sin traducir: `'email'`,
+  `'password'`, `'role'`, `'file'`, `'seccion'`, `'orden'`… Mapearlo al input del
+  formulario es responsabilidad del consumidor.
+- **Es aditivo**: `error` sigue llegando siempre, así que un consumidor que solo
+  pinte `error` no cambia de comportamiento. Hoy lo son `BlogIndex` y
+  `LeadsList`, que ignoran `field`.
 
 Notas:
 
