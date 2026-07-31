@@ -1536,3 +1536,143 @@ autor como el revisor declararon esa atribución en vez de apuntársela.
   **H1-H3** de la feature 24 más el CTA de precios.
 - Deuda ajena confirmada intacta (C10): `ArticlesList.tsx` y `Blog.tsx` sin migrar
   a `normalizeApi`, y el doble `useReveal`.
+
+---
+
+## 2026-07-31 — Feature 30: Vista admin de precios (maqueta con datos mock)
+
+**Estado final:** done — **APROBADO** en `progress/review_30.md` (veredicto
+`APPROVED`, §2 los 11 `acceptance`, §8 los 11 checkpoints, 11/11 en ambos, sin
+rechazo previo).
+**Autoría partida, y conviene saberlo al leer el informe:** el **código de
+producción lo escribió un implementer que cayó por límite de sesión** antes de
+documentarlo (commit `c8dec91`, «feat(admin): maqueta la vista de precios contra
+el contrato real (WIP)»). Un **segundo agente** escribió los tests y
+**reconstruyó `progress/impl_30.md` leyendo el código**, no de memoria: el propio
+informe lo declara en su encabezado, separa «lo que cambié yo» (§1) de «el código
+de producción, reconstruido leyéndolo» (§2) y deja en §4 cuatro cosas marcadas
+como **no reconstruibles** en vez de inventarles motivación. El revisor **no se
+apoyó en ese informe** para nada sustantivo: verificó ejecutando y leyendo la
+fuente, y **reprodujo él mismo las nueve mutaciones** con el mismo número de
+fallos cada una (§5).
+**Rama / commits:** `feat/admin-cruds` · producción en `c8dec91` · tests e informe
+en `fdf80c4` · **3 archivos de producción + 1 de test**, ninguno preexistente
+modificado.
+
+**Qué se hizo:**
+
+- **`src/admin/prices/mockPrices.ts` (nuevo):** almacén en memoria con
+  `resetMockPlanes()` y los **14 campos exactos** del contrato
+  (`docs/api-contract.md` §10.4) en español, con `id` como **`string`** (el
+  `BIGSERIAL` sin castear). `StoredPlan` = `MockPlan` **sin** `precio_anual` ni
+  `ahorro_anual`, y `MockPlanPatch` se deriva de él: los derivados son
+  **inexpresables en el PATCH por tipos**, no por disciplina. La aritmética
+  (`round(mensual × (1 − pct/100))`, `round((mensual − anual) × 12)`) replica
+  `src/precios.js:54-70` del backend. Listado `{ rows }` **sin paginación**,
+  orden `orden ASC, id ASC`, y `422 { error, field }` modelado en `MockResult`.
+- **`src/admin/prices/PricesList.tsx` (nuevo):** tabla de 9 columnas con chips
+  `Destacado` / `A convenir`, viñetas tachadas con `line-through` y el botón de
+  editar solo para `role === 'admin'`.
+- **`src/admin/prices/PlanEditDialog.tsx` (nuevo):** edita los campos
+  almacenados; `precio_anual` y `ahorro_anual` **no son campos**, se pintan en una
+  caja `data-testid="derivados"` recalculada en vivo con la misma aritmética.
+- **`src/admin/__tests__/PricesList.test.tsx` (nuevo):** **9 tests** que cubren
+  los 11 `acceptance`. Cero red: espía `globalThis.fetch` y afirma
+  `not.toHaveBeenCalled()`.
+
+**Decisiones que importan:**
+
+- **La trampa del plan Custom se reproduce a propósito.** El seed guarda
+  `precio_mensual: null` en Enterprise y `toNumber()` lo devuelve como **`0`**,
+  igual que el backend real y **al contrario de lo que dice `API_READY.md`**.
+  Sobre ese dato envenenado, la UI decide por **`es_custom`**, nunca por el nulo.
+  El test verifica **antes, contra el mock**, que el dato llega como `0`; sin eso
+  no distinguiría «detecta `es_custom`» de «se fía del nulo y tiene suerte». El
+  revisor lo mutó a `p.precio_mensual == null` y el test cayó (`expected '$0' to
+  be '—'`): **discrimina de verdad**.
+- **Tests con casos que distinguen fórmulas**, no que solo pasan: `25` al 10 % →
+  `$23` (`round(22.5)`; `floor` daría 22), ahorro `(100 − 90) × 12 = 120` (un
+  `× 1` no lo simula), y comparación de `textContent` **exacto** en vez de
+  `toHaveTextContent`, que hace match de subcadena («$14» dentro de «$140»).
+- **La no-editabilidad de los derivados se asserta con el conjunto exacto de
+  `textbox`**, así que un «Precio anual» futuro rompe el test aunque se etiquete
+  de otra forma. Se demostró con una mutación **aditiva** (M7): la única manera de
+  probar que un test detecta algo prohibido es introducir lo prohibido.
+- **El seed de Growth da `539`/`720` donde la landing tiene a mano `540`/«$708/año».**
+  Está documentado y asumido en el propio mock: es la diferencia que aparecerá el
+  día que la landing consuma la API, no un error de esta feature.
+- **`Pricing.tsx` no se tocó** (`git diff` vacío, verificado por el revisor), ni
+  `src/lib/api.ts`, ni `AppRoutes.tsx`, ni `docs/`.
+
+**Verificación (rehecha en este cierre, con mis propios ojos):**
+`npm test && npm run typecheck && npm run build` → **exit 0 los tres** ·
+`npm test` **18 archivos / 119 tests**, 0 fallos (52,81 s) · `npm run typecheck`
+exit 0 · `npm run build` exit 0 con el aviso esperado `Some chunks are larger
+than 500 kB` (`✓ built in 13.84s`). Coincide con lo medido por el implementer
+(`impl_30.md` §6) y por el revisor (`review_30.md` §1). Baseline `17 / 110` →
+**`18 / 119`**: +1 archivo y +9 tests, **todos atribuibles a esta feature**,
+ningún test previo roto.
+
+**Cierre de la tanda de vistas admin (28, 29, 30):**
+
+Con esta feature se cierra el encargo del humano de las **tres vistas**:
+**28 usuarios**, **29 imágenes** y **30 precios**. Las tres están **maquetadas con
+datos mock y cerradas**, y **ninguna consume el backend**: fue **decisión
+explícita del humano**, no una limitación. El siguiente paso natural es el
+cableado, y para eso ver los pendientes de abajo — hay tres cosas que hay que
+hacer **antes**, en ese orden.
+
+**Pendiente:**
+
+- **Feature 31 (`pending`) — `normalizeApi` descarta el campo `field` de los
+  errores 422.** Es **lo primero que hace falta para cablear**: los **tres CRUD
+  del backend devuelven `{ error, field }`** en sus 422, y sin esta feature el
+  marcado por campo se pierde y todo cae al `Alert` global. Las tres maquetas ya
+  modelan `field` en sus `MockResult`, así que el resto del cableado es mecánico;
+  este es el único punto donde no lo es.
+- **El backend está completo y verificado contra el servidor vivo**
+  (`/api/health` → `{"ok":true,"db":true,"mailer":true}`, puerto **3002**), **pero
+  las tablas están vacías y sin seed**. Migrar la landing (`Pricing.tsx`,
+  `Hero.tsx`, `CTAFinal.tsx`) antes de cargar datos por el panel dejaría la
+  **sección de precios y el carrusel en blanco**. Sembrar datos —o cargarlos desde
+  el propio panel— antes de cualquier feature de integración.
+- **No existe `GET /api/admin/precios`.** El listado de planes del panel sale del
+  endpoint **público** `GET /api/precios`. Verificado contra el servidor: responde
+  **404, no 401**, así que no es un problema de sesión. La descripción de la
+  feature 30 en `feature_list.json` sigue diciendo lo contrario; queda como
+  registro histórico, no como contrato.
+- **Discrepancia viva entre `API_READY.md` y el código del backend** (recogida en
+  `docs/api-contract.md` §10.4): el handoff dice que un plan Custom trae
+  `precio_mensual` en `null`, pero el backend lo pasa por `toNumber()` y devuelve
+  **`0`**. **La regla segura es detectar `es_custom`, nunca el nulo.** La maqueta
+  de precios ya lo hace así y su test lo sujeta.
+- **Copy de `AdminHome.tsx`, deuda preexistente y candidata a feature nueva:**
+  sigue diciendo que Leads y el mantenedor del blog «llegarán en próximas
+  iteraciones», lo cual es **falso desde las features 19-20**, y menciona
+  `node scripts/create-user.js`, que **la feature 28 ya reemplazó por UI**. No es
+  deuda de la 30.
+- **Conteos de test desactualizados en `docs/`**: `docs/verification.md` §1-§2 y
+  `docs/architecture.md:252` siguen citando `15 archivos / 86 tests`; el árbol va
+  por **18 / 119**. Este cierre tenía `docs/` **fuera de su alcance autorizado**,
+  así que se vuelve a aplazar — pero ahora **ya no hay features en vuelo**, luego
+  la cifra `18 / 119` es estable y se puede escribir sin que nazca vieja.
+- **Observaciones no bloqueantes del revisor** (`review_30.md` §9), a resolver al
+  cablear, no antes: el comentario de `formatMoneda` dice «pesos» y usa `es-MX`
+  mientras el diálogo dice al usuario «En dólares» (la moneda no está definida ni
+  en el contrato ni en la landing); la densidad de `data-testid` (9 entre los dos
+  componentes) es un patrón nuevo justificado aquí que conviene no extender; y el
+  `Switch` «Plan a convenir» permite alternar `es_custom` sin que §10.4 diga si el
+  `PATCH` real lo acepta — **comprobarlo contra el backend antes de cablear** y, si
+  no lo admite, quitar el control del formulario.
+- **Huecos de documentación declarados, no inventados** (`impl_30.md` §4): por qué
+  el mock solo tiene `update` y no `create`/`delete` teniendo el contrato `POST` y
+  `DELETE` (se lee como scope deliberado, pero no hay nada escrito), y por qué
+  `parseImporte` acepta decimales y `parseOrden` no.
+- Siguen abiertos, sin cambios, los pendientes heredados: el **arnés de suspensión
+  (H2)**, el **flake de `AppRoutes.test.tsx`** (`findByRole` agotando el timeout
+  bajo carga; el archivo pasa 8/8 aislado y no se tocó por C10),
+  `tsconfig.tsbuildinfo` trackeado pese a estar en `.gitignore`, los preexistentes
+  **H1-H3** de la feature 24 más el CTA de precios, las **lagunas de cobertura
+  aceptadas de la 29** (estados de carga y error de la galería), y la deuda ajena
+  confirmada intacta: `ArticlesList.tsx` y `Blog.tsx` sin migrar a `normalizeApi`,
+  y el doble `useReveal`.

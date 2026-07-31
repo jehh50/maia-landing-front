@@ -262,7 +262,7 @@
     {
       "id": 30,
       "name": "Vista admin de precios (maqueta con datos mock)",
-      "status": "pending",
+      "status": "done",
       "priority": "alta",
       "description": "Maqueta la administracion de planes de precios. ACTUALIZACION 2026-07-30: el backend YA commiteo su CRUD (commit f878d0b) y publico API_READY.md, asi que el contrato real SUSTITUYE al mapeo que este backlog proponia antes. Contrato verificado en docs/api-contract.md §10.4. Ojo: los campos van en espanol, la tabla es 'planes', la ruta es /api/admin/precios, el descuento es POR PLAN y los campos precio_anual y ahorro_anual son DERIVADOS de solo lectura. Se sigue maquetando con mock (decision del humano); no se cablea.",
       "acceptance": [
