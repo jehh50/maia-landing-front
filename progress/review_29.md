@@ -1,4 +1,5 @@
-**Veredicto: RECHAZADO** (`CHANGES_REQUESTED`)
+**Veredicto: APROBADO** (`APPROVED`) — re-review del 2026-07-30, ver §12.
+**Veredicto original (2026-07-30, commit `339752c`): RECHAZADO** (`CHANGES_REQUESTED`) — se conserva íntegro más abajo, §1-§11.
 
 # Review — feature 29: Vista admin de imágenes (maqueta con datos mock)
 
@@ -354,3 +355,185 @@ tests exigidos son load-bearing, comprobado con mutación.
 Lo que falta son **dos tests de ~8 líneas** para dos cláusulas del acceptance que hoy no
 tienen ninguna verificación y que la feature hermana sí cubrió. C2 es rechazo automático y no
 tengo margen para interpretarlo a la baja. Con esos dos tests, esto es un `APROBADO` directo.
+
+
+---
+---
+
+# 12. RE-REVIEW — commit `86e795f` (rama `feat/admin-cruds`)
+
+Revisor: reviewer. Fecha: 2026-07-30. Commit re-revisado: `86e795f`
+("test(admin): cubre el estado vacío y la sección obligatoria de imágenes").
+Informe del autor releído: `progress/impl_29.md` §R2.1-R2.3.
+
+> **Alcance de esta re-review.** Solo compruebo (a) si el motivo del rechazo —C2, las dos
+> cláusulas del `acceptance` sin test— queda cerrado, (b) si los tests nuevos son honestos,
+> (c) si el arreglo tocó código de producción, y (d) si hay regresión. **No rehago** el
+> análisis de fidelidad al contrato, estilos, accesibilidad ni scope: quedó aprobado en
+> §2-§8 y el código de producción no ha cambiado ni un byte (§12.3).
+
+## 12.1 Verificación ejecutada (repetida por el revisor)
+
+| Comando | Resultado |
+|---------|-----------|
+| `npm test` | **exit 0** — 17 archivos / **110 tests**, 0 fallos |
+| `npm run typecheck` | **exit 0** (`tsc -b --noEmit`) |
+| `npm run build` | **exit 0** — `✓ built in 28.66s`; aviso `Some chunks are larger than 500 kB` **esperado**, no es fallo |
+| `npx vitest run src/admin/__tests__/ImagesGrid.test.tsx` | **exit 0** — **12/12** (antes 10/10) |
+
+**Sobre el conteo.** El líder anunció «18 archivos / 110 tests»; yo mido **17 archivos / 110
+tests**. Los tests coinciden, que es lo que importa; la diferencia de archivos es del trabajo
+en curso de la feature 30 (ajena a esta review) y no afecta a nada de la 29. El salto
+106 → 110 son **+4**, y el propio autor lo desglosa correctamente en `impl_29.md` §R2.3: **+2
+suyos** (`ImagesGrid.test.tsx` 10 → 12, confirmado en aislado) y **+2 de
+`src/admin/__tests__/UsersList.test.tsx`**, que vienen del commit `cd803cb` (endurecimiento del
+test de la fila propia, cierre de la feature **28**). Verificado con `git show --stat cd803cb`.
+Declarar esa atribución en vez de apuntarse los cuatro es exactamente lo que se espera.
+
+## 12.2 Los dos tests nuevos cubren las cláusulas correctas (no algo adyacente)
+
+**1. Estado vacío — acceptance 1.** `ImagesGrid.test.tsx:216-233`,
+«muestra el estado vacío cuando la sección se queda sin imágenes». Ataca la rama exacta que
+señalé en §3.1, `ImagesGrid.tsx:288-291`, y lo hace bien:
+
+- afirma **primero** que «Sin imágenes en esta sección.» **no** está al cargar — sin eso el
+  test podría pasar con el texto siempre presente;
+- vacía `cta_final` borrando `maia.png` (id 4, su única imagen) **por el flujo real de UI**
+  (`IconButton` `Borrar maia.png` → confirmación `Borrar`), no manipulando el almacén;
+- cierra con `expect(screen.getByText('hero.png')).toBeInTheDocument()`, que fija que el vacío
+  es **por sección** y no un vacío global por un borrado que se llevara todo por delante.
+
+Es el precedente de `UsersList.test.tsx:71` que pedí, aplicado con una aserción de más.
+
+**2. `seccion` obligatoria — acceptance 2.** `ImagesGrid.test.tsx:235-250`,
+«exige elegir sección al subir cuando el filtro sigue en «Todas»». Reproduce el flujo **por
+defecto** descrito en §3.2 (`filtro === ''` → `seccionInicial=''` → `seccion=''`): abre «Subir
+imagen» **sin tocar el filtro**, carga un PNG **válido** —de modo que el único motivo posible
+de rechazo es la sección, no el archivo— y pulsa «Subir». Afirma el mensaje literal del
+backend `seccion requerida` (`ImageUploadDialog.tsx:82`), que `nueva-foto.png` **no** llega a
+la galería, y que el diálogo **sigue abierto**. Las tres aserciones miden cosas distintas; la
+tercera es la que descarta que el envío «pasara y fallara luego».
+
+Ninguno de los dos es una prueba adyacente que se le parezca: cada uno toca la línea concreta
+que cité en el rechazo.
+
+## 12.3 Honestidad: prueba de mutación repetida por mí, no aceptada de palabra
+
+`impl_29.md` §R2.2 afirma haber mutado, visto rojo y revertido, y sostiene que **solo esos dos**
+caen. **Lo he comprobado yo.** Rsync del árbol a un scratchpad aislado (nunca sobre la copia de
+trabajo, donde otro agente escribe la feature 30) y las **dos mutaciones que el autor declara**:
+
+| Mutación aplicada | Archivo:línea |
+|-------------------|---------------|
+| `{imagenes.length === 0 ? (` → `{false ? (` | `src/admin/images/ImagesGrid.tsx:288` |
+| `if (!seccion) …` → `if (false && !seccion) …` | `src/admin/images/ImageUploadDialog.tsx:82` |
+
+`npx vitest run src/admin/__tests__/ImagesGrid.test.tsx` con ambas puestas:
+
+```
+   ✓ … cancelar la confirmación no borra la imagen
+   ✓ … confirmar el borrado quita la imagen de la galería
+   × … muestra el estado vacío cuando la sección se queda sin imágenes
+   × … exige elegir sección al subir cuando el filtro sigue en «Todas»
+ Tests  2 failed | 10 passed (12)
+```
+
+**Reproduzco el resultado exacto que reporta el autor: caen los dos nuevos y solo los dos.**
+Los diez previos siguen verdes con las mutaciones puestas, lo que confirma que cada test nuevo
+aporta cobertura que antes no existía en ningún otro sitio del archivo.
+
+Además comprobé **por qué** fallan, que es donde se esconden los tests decorativos. Los dos
+mueren en la aserción diana, no de rebote:
+
+```
+→ Unable to find an element with the text: Sin imágenes en esta sección.
+→ Unable to find an element with the text: seccion requerida
+```
+
+**La nota del autor sobre la segunda mutación es correcta y la verifico**: neutralizar la línea
+82 no deja pasar la subida, porque la guarda de estrechamiento de tipos de
+`ImageUploadDialog.tsx:90` (`if (!file || !seccion || ordenNum === null) return;`) sigue frenando
+el envío; lo que desaparece es el **mensaje**. Levanto además un detalle que el autor no menciona
+y que refuerza el test: existe una **segunda** fuente del mismo literal en
+`mockImages.ts:240` (`if (!input.seccion) return { ok: false, error: 'seccion requerida', field: 'seccion' }`).
+El test podría haber pasado por esa vía sin ejercer la guarda del diálogo — no es el caso, porque
+la línea 90 corta antes y la mutación de la 82 lo deja en rojo. La cláusula está genuinamente
+defendida en cliente, y además a dos capas.
+
+**Reversión.** Muté **solo en el scratchpad**; la copia de trabajo no se tocó en ningún momento.
+Tras revertir, `md5sum` de los dos archivos de producción — real y scratchpad — coincide
+(`e8c7c312db727482b4be7b1cfbea76be` `ImagesGrid.tsx`,
+`d4ea36c2cdf938cad2d2392a2545509b` `ImageUploadDialog.tsx`), y son **los mismos hashes** que
+declara el autor en su §R2.2. `git status --short` en el repo: **salida vacía**.
+
+## 12.4 El arreglo no tocó código de producción
+
+`git show --stat 86e795f`:
+
+```
+progress/impl_29.md                     | 103 +
+progress/review_29.md                   | 356 +
+src/admin/__tests__/ImagesGrid.test.tsx |  37 +
+```
+
+**Solo un archivo de código, y es el de tests.** Comprobación independiente del rango completo,
+no solo de ese commit: `git diff --stat 339752c..HEAD -- src/admin/images/` → **salida vacía**, y
+`git log --oneline 339752c..HEAD -- src/admin/images/` → **sin commits**. Es decir,
+`ImagesGrid.tsx`, `ImageUploadDialog.tsx` y `mockImages.ts` están **byte a byte** como los aprobé
+en §4-§7. El encargo era de cobertura y se respetó al pie de la letra. Tampoco se tocó
+`tsconfig.tsbuildinfo` esta vez.
+
+Merece mención que el autor **no** añadió la aserción opcional de `maxLength=300` que yo marqué
+como no bloqueante en §3.2: la disciplina de «corrige exactamente lo que motivó el rechazo, nada
+más» es la correcta y no cuenta en contra (C10).
+
+## 12.5 Sin regresión
+
+Los 10 tests previos de `ImagesGrid.test.tsx` pasan (12/12 en aislado) y la suite entera va a
+110/110 en 17 archivos, exit 0. Los cuatro tests exigidos por el acceptance 8 siguen siendo
+load-bearing: con las mutaciones de §12.3 puestas **siguen verdes**, porque atacan otras ramas —
+su carácter load-bearing ya lo probé por mutación propia en §1.1.
+
+Ningún archivo de `src/admin/prices/` entra en esta review: la feature 30 la escribe otro agente
+en paralelo y su avance no se computa aquí, ni a favor ni en contra.
+
+## 12.6 Checkpoints — re-evaluados
+
+Solo cambia **C2**; el resto se mantiene por §9, ya que el código de producción es idéntico.
+
+- **C1** `[x]` — `npm test` exit 0, 110/110, ningún test previo roto.
+- **C2** `[x]` — **cerrado.** Acceptance 1: estado vacío cubierto en `ImagesGrid.test.tsx:216-233`
+  contra `ImagesGrid.tsx:288-291`. Acceptance 2: `seccion` obligatoria cubierta en
+  `ImagesGrid.test.tsx:235-250` contra `ImageUploadDialog.tsx:82`. Ambos verificados por mutación
+  propia (§12.3), no por el informe del autor. Las 8 cláusulas del `acceptance` tienen ya su
+  verificación, salvo `carga` y `error`, exceptuadas y argumentadas en §3.1.
+- **C3** `[x]` — typecheck exit 0, build exit 0 (aviso de chunk esperado).
+- **C4** `[x]` — el test nuevo vive en `src/admin/__tests__/` junto a los demás; cero `any`, cero
+  hex, cero `className` (grep sobre el archivo). Comentarios en español, como el resto.
+- **C5** `[x]` — sin cambios de producción; ningún `fetch` nuevo, ningún state manager.
+- **C6** `[x]` — no se consume ningún endpoint; el contrato no se toca.
+- **C7** `[x]` — `impl_29.md` documenta el arreglo, la prueba de mutación y la atribución honesta
+  del +4/+2 del conteo. `feature_list.json` sigue con la 29 en `pending`, correcto: marcarla
+  `done` es del líder.
+- **C8** `[x]` — ningún `.env`, ninguna variable de entorno.
+- **C9** `[x]` — sin `console.log` ni restos; los comentarios de los tests explican el *porqué*
+  (por qué `cta_final` es la sección que se vacía, por qué el filtro no se toca).
+- **C10** `[x]` — dos tests y nada más; no se coló el `maxLength` opcional ni H1-H3.
+- **C11** `[x]` — infraestructura intacta.
+
+**Ningún `[ ]`. C1, C2, C3 y C8 en `[x]`.**
+
+## 12.7 Veredicto de la re-review
+
+**APROBADO — `APPROVED`.**
+
+El rechazo queda cerrado por lo que se pidió y como se pidió: dos tests, ningún cambio de
+producción, verificados por mutación **por mí** con el mismo resultado que declara el autor —
+caen los dos nuevos y solo los dos, y mueren en la aserción diana. El informe `impl_29.md` §R2.2
+resiste la comprobación independiente, incluida la reversión (hashes coincidentes) y la
+atribución del conteo de tests a la feature 28 ajena.
+
+Con esto, la feature 29 cumple sus 8 acceptance criteria y conserva lo que ya era su mayor
+mérito: una maqueta fiel al contrato real de imágenes —9 campos sin `bytes`, enum derivado, sin
+paginación, `PATCH` de tres campos, sin «reemplazar imagen», cero red— cuyo cableado será
+mecánico. **Lista para que el líder la marque `done`.**
