@@ -1800,3 +1800,219 @@ no lo era.
   `Switch` de `es_custom` sin respaldo en §10.4) y la deuda ajena confirmada
   intacta: `ArticlesList.tsx` y `Blog.tsx` sin migrar a `normalizeApi`, y el doble
   `useReveal`.
+
+---
+
+## 2026-07-31 — Feature 32: Cablear la vista de usuarios a `/api/admin/users`
+
+**Estado final:** done — **APROBADO** en `progress/review_32.md` (los **10
+`acceptance`** uno a uno con archivo y línea, y los **11 checkpoints** C1-C11 en
+verde, sin rechazo previo). Informe del implementer en `progress/impl_32.md`.
+**Rama / commit:** `feat/admin-cruds` · `ba232e7` · **7 archivos**:
+`src/lib/api.ts`, `src/admin/users/UsersList.tsx`, `src/admin/users/UserDialog.tsx`,
+`src/admin/users/mockUsers.ts` (**eliminado**), `src/admin/__tests__/UsersList.test.tsx`,
+`docs/api-contract.md` y el propio informe.
+
+**Qué se hizo:**
+
+- **`src/lib/api.ts`** (diff **estrictamente aditivo**: 85 líneas insertadas, **0
+  eliminadas**, verificado por el revisor sobre el diff y no sobre el informe):
+  bloque «Admin: usuarios (feature 32)» con los cinco helpers `listAdminUsers`,
+  `getAdminUser`, `createAdminUser`, `updateAdminUser` y `deleteAdminUser`, todos
+  por `apiJson` (que ya pone `credentials: 'include'`), más
+  `FORBIDDEN_ERROR`/`adminErrorMessage` y los tipos `AdminUserRow extends
+  AdminUser`, `UserCreateInput` (exige `password`) y `UserPatchInput =
+  Partial<UserInput>` (lo deja opcional). **`password_hash` no aparece en ningún
+  tipo del front.**
+- **`UsersList.tsx` / `UserDialog.tsx`:** cableados vía `normalizeApi`. Cero
+  `fetch` en componentes y cero `'rows' in data` manual en `src/admin/users/`.
+- **`mockUsers.ts` eliminado** (126 líneas); las fixtures viven en el test con la
+  forma exacta de `PUBLIC_COLS` del backend.
+- **`UsersList.test.tsx` reescrito:** **20 casos** con `vi.spyOn(globalThis,
+  'fetch')` y `Response` reales, sin mockear `src/lib/api.ts`.
+- **`docs/api-contract.md`:** usuarios pasa de §10.3 (maquetación) al nuevo
+  **§4 bis** (endpoints vigentes), con rutas, tipos, tabla de errores, las tres
+  asimetrías con leads y las dos reglas del borrado.
+
+**Decisiones que importan (fijan el patrón de las features 33 y 34):**
+
+- **El `204` se resuelve en el helper, no en el componente:**
+  `res.ok && res.data == null ? { ...res, data: { ok: true } } : res`. El
+  `res.ok &&` delante es lo contrario del `if (ok || data == null)` de
+  `ArticlesList.tsx:43`: un `500` sin cuerpo sigue siendo un error. El revisor lo
+  señaló como **el molde a replicar**.
+- **La búsqueda es de cliente, no un `?q=`.** Verificado en el backend
+  (`usersRouter.js:53-61` llama a `listUsers(pool)` sin leer `req.query`;
+  `users.js:124-129` es un `SELECT … ORDER BY id ASC` sin `WHERE`): mandar `?q=`
+  sería inventar contrato. Filtro en `useMemo` y **sin `TablePagination`**, porque
+  el contrato es `{ rows }` a secas.
+- **El `403` de `requireRole` no tiene la forma habitual:** el backend manda
+  `{ ok:false, error:'forbidden', message:'…' }`, así que `ApiFailure.error` trae
+  el **token**, no un texto legible. `adminErrorMessage` lo traduce por `status`
+  para que un `editor` no lea literalmente «forbidden».
+- **`field` → input:** whitelist `FORM_FIELDS.find(f => f === field) ?? null`, de
+  modo que un `field` no previsto cae al `<Alert role="status">` global en vez de
+  marcar un input inexistente. Primer consumidor de la feature 31.
+- **Los dos `409`:** el del usuario propio se sigue **previniendo en la UI**
+  (`disabled={isSelf}` + `Tooltip`), y el del último admin **solo se conoce por
+  respuesta** —no es deducible en cliente—, así que se pinta `res.error` tal cual.
+- **`id` se mantiene `number`** en usuarios: cambiarlo a `string` tocaría
+  `AdminGuard`, `Login` y `AdminLayout`, que no son de esta feature (C10). Las
+  features 33 y 34 **sí** piden tratarlo como string.
+
+**Honestidad del informe:** la mutación **M3** salió **verde** —degradar el
+`res.ok &&` no lo detectaba la suite, porque `normalizeApi` ya revalida `ok`— y el
+implementer **lo escribió en vez de taparlo**: añadió el test que faltaba (un
+`500` sin cuerpo en el `DELETE`, que **M3b** sí pone en rojo) y dejó de vender esa
+guarda como «la única barrera».
+
+**Sobre la review:** el revisor **no se fió del informe**. Leyó el backend real
+(`/var/www/html/maia-landing-back`) y confirmó línea a línea que no hay paginación
+ni `?q=`, que los `422` traen `field: 'email'|'password'|'role'` —los tres
+cubiertos por el whitelist—, los dos `409` y el `res.status(204).end()`. Aplicó
+además **seis mutaciones propias**, una a una, restaurando con `git checkout --`
+entre cada una: ignorar `res.field` (**rojo, 2**), no sintetizar el `204`
+(**rojo, 1**), mandar siempre `password` en el `PATCH` (**rojo, 1**), pedir
+`?limit=25&offset=0` (**rojo, 2**), `adminErrorMessage` a secas (**rojo, 1**) y un
+`useMemo` que no filtra (**rojo, 2**). **Ninguna pasó desapercibida.**
+
+**Verificación:** `npm test` **18 archivos / 133 tests** exit **0** ·
+`npm run typecheck` exit **0** · `npm run build` exit **0** (aviso esperado de
+chunk >500 kB). Baseline `18 / 125` → **`18 / 133`**: **+8 tests netos** (20 casos
+nuevos − 12 de la maqueta), **0 archivos nuevos** (se reescribió el test, no se
+añadió), **0 tests previos rotos**. Medido tres veces: implementer, revisor y este
+cierre (que ya lo mide sobre el árbol con la 33 encima: **18 / 144**).
+
+**Pendiente que deja:**
+
+- **`getAdminUser` es hoy código muerto:** lo pedía el acceptance 1 y respeta el
+  patrón de `getAdminArticle`, pero **no lo llama ningún componente ni lo cubre
+  ningún test**. Si la 33 y la 34 copian el molde, acabarán tres helpers de
+  detalle sin consumidor.
+- **El error del listado no se anuncia:** `UsersList.tsx:118` pinta el error en un
+  `Box` **sin `role="alert"`**, así que un lector de pantalla no se entera del
+  `409` del último admin. Es el patrón heredado de `LeadsList.tsx:100`, no una
+  regresión, pero es justo donde aterriza el único error imprevisible.
+- **El whitelist de `field` se apoya en una coincidencia de nombres.** Hoy los
+  tres del backend coinciden con los del formulario; si en la 34 el backend nombra
+  un campo distinto al del input, hará falta un `Record` explícito.
+- **Drift documental:** `docs/architecture.md:9` sigue diciendo que usuarios está
+  «en maquetación… con datos mock» y su §5 no lista `/api/admin/users`.
+
+---
+
+## 2026-07-31 — Feature 33: Cablear la vista de imágenes a `/api/images` y `/api/admin/images`
+
+**Estado final:** done — **APROBADO** en `progress/review_33.md` (los **10
+`acceptance`** con archivo y línea en §2, los **11 checkpoints** C1-C11 en verde,
+sin rechazo previo). Informe del implementer en `progress/impl_33.md`.
+**Rama / commit:** `feat/admin-cruds` · `af2613e` · **7 archivos**:
+`src/lib/api.ts`, `src/admin/images/ImagesGrid.tsx`,
+`src/admin/images/ImageUploadDialog.tsx`, `src/admin/images/mockImages.ts`
+(**eliminado**), `src/admin/__tests__/ImagesGrid.test.tsx`, `docs/api-contract.md`
+y el propio informe.
+
+**Qué se hizo:**
+
+- **`src/lib/api.ts`** (diff **estrictamente aditivo**: `198 insertions(+), 0
+  deletions(-)`, un único hunk al final del archivo; el revisor comprobó que
+  `postLead`, `apiJson`, `publicJson`, `normalizeApi`, `readErrorMessage`/
+  `readErrorField`, `adminErrorMessage` y los helpers de leads, artículos y
+  usuarios siguen **intactos byte a byte**): `imageRawUrl`, `listImages`,
+  `createAdminImage`, `updateAdminImage`, `deleteAdminImage`, el helper privado
+  `apiUpload`, los tipos (`AdminImage`, `ImageSeccion`, `ImagesListResponse`,
+  `ImageUploadInput`, `ImagePatchInput`) y la validación de cliente
+  (`validateImageFile`, `parseOrden`, `formatFileSize`,
+  `ACCEPTED_IMAGE_MIME_TYPES`, `MAX_IMAGE_SIZE_BYTES`, `IMAGE_ALT_MAX`).
+- **`ImagesGrid.tsx` / `ImageUploadDialog.tsx`:** cableados vía `normalizeApi`,
+  previews con `imageRawUrl`, mapeo de `field` por tabla y los 413/415/422 del
+  backend.
+- **`mockImages.ts` eliminado** (291 líneas): el contrato y la validación se
+  mudaron a `lib/api.ts`, el copy de las secciones a `ImagesGrid.tsx` (con un
+  `Record<ImageSeccion, string>` que **obliga a dar etiqueta** a cualquier sección
+  nueva) y los datos semilla a las fixtures del test.
+- **`ImagesGrid.test.tsx` reescrito:** **23 casos**; el mock incluso responde
+  `415` si el POST no llega como `FormData`, imitando a multer.
+- **`docs/api-contract.md`:** imágenes pasa de §10.2 al nuevo **§4 ter**.
+
+**Decisiones que importan:**
+
+- **`apiUpload`, y por qué `apiJson` no servía.** `apiJson` fija
+  `Content-Type: application/json`; con un `FormData` eso es fatal, porque el
+  `Content-Type` correcto es `multipart/form-data; boundary=…` y **el boundary
+  solo lo conoce el navegador**. El helper es literalmente
+  `{ method, credentials: 'include', body }`, **sin `headers` de ningún tipo**;
+  devuelve la misma forma `{ ok, status, data }` que `apiJson` y tampoco lanza.
+  **No acepta `headers` desde fuera** —la firma es `(path, body: FormData)`, sin
+  parámetro `init`— y **no se exporta**: la puerta no está entreabierta, está
+  tapiada. Es el **cuarto transporte** del módulo.
+- **Dos transportes en el mismo recurso.** El **listado va por `publicJson`**
+  (`credentials: 'omit'`) contra el endpoint **público** `GET /api/images?seccion=`
+  —no existe ninguno bajo `/api/admin/` para leer, misma asimetría que precios— y
+  las tres escrituras por `apiJson`/`apiUpload` con `credentials: 'include'`.
+- **A diferencia de usuarios, el filtro SÍ viaja al backend** (`?seccion=`): aquí
+  el endpoint lo acepta. No es un filtro de cliente disfrazado.
+- **La URL pública se construye, no llega.** El JSON no trae ningún campo `url`;
+  `imageRawUrl(id)` es el **único sitio** donde se aplica `VITE_API_BASE`.
+- **`id` como string** (`BIGSERIAL` sin castear): cero `Number(`/`parseInt` sobre
+  ids en producción. Al mutarlo a `number`, `typecheck` cae con 6 errores.
+- **El `204` con el molde de la 32**, guarda `res.ok &&` incluida, con test del
+  `204` como éxito **y** de un `500` sin cuerpo que no debe confundirse con él.
+- **`field` → input por tabla, no por whitelist** (atendida la observación 3 de
+  `review_32.md`): `FIELD_BY_BACKEND` en el diálogo de subida (`file`, `seccion`,
+  `orden`) y `EDIT_FIELD_BY_BACKEND` en el de edición (`alt`, `orden`, `seccion`).
+  **Dos tablas y no una** porque son formularios con inputs distintos: el `PATCH`
+  no tiene campo `file` y el `POST` no puede recibir un `422` de `alt`. `alt`
+  queda fuera de la de subida **a propósito**: el backend lo trunca, no lo rechaza.
+- **La validación de cliente se mantiene además de los códigos remotos**, no en su
+  lugar: subir 5 MB para recibir un rechazo es tirar ancho de banda. Los `413`/
+  `415` se marcan en el campo de archivo; si el backend manda mensaje se muestra
+  el suyo, y si llega **sin cuerpo legible** —lo típico de un `413`, porque multer
+  corta antes del handler— se usa el copy propio de `STATUS_COPY`.
+- **El error del listado ahora sí se anuncia** con `role="alert"` (observación 4
+  de `review_32.md`), aplicado **solo a su propio archivo**: no se tocaron
+  `UsersList.tsx` ni `LeadsList.tsx` (C10).
+
+**Sobre la review:** el revisor verificó **13 mutaciones propias** (M1-M13 más el
+control de tipos), cada una sola sobre el árbol y restaurada desde copia antes de
+la siguiente, con la suite aislada: `Content-Type` fijado a mano (**rojo**), el
+archivo en `archivo` en vez de `file` (**rojo**), el listado por `apiJson` contra
+`/api/admin/images` (**rojo, 3**), `imageRawUrl` a otra ruta (**rojo, 2**), el
+`204` sin la guarda `res.ok` (**rojo**, el 500 sin cuerpo), sin comprobar tamaño
+(**rojo**), admitir `image/svg+xml` (**rojo**), `filename` de más en el `PATCH`
+(**rojo**), ignorar `res.field` (**rojo**), ignorar `STATUS_COPY` (**rojo**), el
+filtro sin viajar al backend (**rojo**), borrar el copy de «no se puede
+reemplazar» (**rojo**), `apiUpload` sin `credentials` (**rojo**) y `id: number`
+(**typecheck rojo, 6 errores**). **Ninguna pasó desapercibida**; el revisor lo
+resume como «el estándar que faltó en la 29 y aquí sí está».
+
+**Verificación:** `npm test` **18 archivos / 144 tests** exit **0** ·
+`npm run typecheck` exit **0** · `npm run build` exit **0** (aviso esperado de
+chunk >500 kB). Baseline `18 / 133` → **`18 / 144`**: **+11 tests netos** (23
+casos nuevos − 12 de la maqueta), **0 archivos nuevos** (test reescrito), **0
+tests previos rotos**. Medido tres veces: implementer, revisor y este cierre.
+
+**Pendiente que deja:**
+
+- **La ventaja de la tabla sobre el whitelist NO está testeada.** El revisor lo
+  probó con un control negativo (**N1**): sustituir `FIELD_BY_BACKEND[res.field]`
+  por un cast crudo `res.field as FormField` **pasa los 23 tests en verde**. Un
+  caso con `field: 'section'` que deba caer al `Alert role="status"` cerraría el
+  círculo. **Aplíquese también a la 34.**
+- **`ImagePatchInput` no se deriva de `AdminImage`:** reescribe a mano lo que es
+  `Partial<Pick<AdminImage,'alt'|'orden'|'seccion'>>`. Hoy coinciden, pero si
+  `AdminImage` cambia el patch deriva en silencio. Es de una línea.
+- **`loading` sigue siendo un booleano** y no la máquina `'loading'|'ok'|'error'`
+  de `conventions.md` §5. Patrón heredado de `LeadsList`/`UsersList`; si se quiere
+  la máquina, es una feature de refactor propia para las tres pantallas.
+- **`docs/api-contract.md` §1 se quedó corta:** anuncia «los tres helpers» y
+  afirma que «todas las peticiones con body van con `Content-Type:
+  application/json`». Con `apiUpload` hay un cuarto transporte y esa frase ya no
+  es universal; la lista de consumidores de `normalizeApi` tampoco menciona
+  imágenes. El implementer lo detectó y lo dejó escrito en vez de salirse de su
+  acotación.
+- **Drift documental, tercer cierre consecutivo:** `docs/architecture.md:9` sigue
+  diciendo que imágenes está «en maquetación con datos mock», su §5 no lista
+  `/api/images` ni `/api/admin/images`, y `docs/verification.md` §1-§2 más
+  `docs/architecture.md` §8 siguen anunciando `15 archivos / 86 tests` cuando el
+  real es **18 / 144**.

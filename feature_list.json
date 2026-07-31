@@ -310,7 +310,7 @@
     {
       "id": 32,
       "name": "Cablear la vista de usuarios a /api/admin/users",
-      "status": "pending",
+      "status": "done",
       "priority": "alta",
       "description": "Sustituye el mock de src/admin/users/mockUsers.ts por helpers reales en src/lib/api.ts. El contrato esta verificado en docs/api-contract.md §10.3 y el backend esta publicado y respondiendo. Es el primer cableado de los tres, asi que fija el patron que seguiran el 33 y el 34.",
       "acceptance": [
@@ -340,7 +340,7 @@
     {
       "id": 33,
       "name": "Cablear la vista de imagenes a /api/images y /api/admin/images",
-      "status": "pending",
+      "status": "done",
       "priority": "alta",
       "description": "Sustituye el mock de src/admin/images/mockImages.ts por helpers reales. Contrato verificado en docs/api-contract.md §10.2. Es el unico cableado con subida de archivos, asi que no puede usar apiJson tal cual: apiJson fija Content-Type application/json y aqui hace falta multipart con boundary generado por el navegador.",
       "acceptance": [
