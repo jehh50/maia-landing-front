@@ -277,6 +277,99 @@ Errores, con `field` cuando aplica (lo propaga `ApiFailure`, ver §1):
 `articles.author_id → users(id) ON DELETE SET NULL`: borrar un usuario **no**
 borra sus artículos, les deja el autor a `NULL`. El copy del borrado lo dice.
 
+## 4 ter. Imágenes (`/api/images` + `/api/admin/images`) — **vigente**
+
+Consumidas desde la **feature 33**. Tabla `images`; el objeto de respuesta tiene
+**exactamente estos 9 campos** (el `bytes` con el binario **nunca** sale por la
+API):
+
+```
+id, seccion, filename, mime_type, size_bytes, alt, orden, created_at, updated_at
+```
+
+| Método | Ruta | Helper | Auth | OK |
+|---|---|---|---|---|
+| `GET` | `/api/images?seccion=` | `listImages({ seccion? })` | **pública** | `200 { rows: AdminImage[] }` |
+| `GET` | `/api/images/:id/raw` | `imageRawUrl(id)` (solo la URL) | **pública** | el binario |
+| `POST` | `/api/admin/images` | `createAdminImage(input)` | cookie, **solo `admin`** | `201 { image }` |
+| `PATCH` | `/api/admin/images/:id` | `updateAdminImage(id, patch)` | cookie, **solo `admin`** | `200 { image }` |
+| `DELETE` | `/api/admin/images/:id` | `deleteAdminImage(id)` | cookie, **solo `admin`** | `204` **sin cuerpo** |
+
+```ts
+type ImageSeccion = 'hero' | 'cta_final';   // enum de aplicación, no de BD
+
+interface AdminImage {
+  id: string;                 // BIGSERIAL sin castear: llega como string
+  seccion: ImageSeccion;
+  filename: string; mime_type: string; size_bytes: number;
+  alt: string | null;
+  orden: number;
+  created_at: string; updated_at: string;
+}
+
+interface ImageUploadInput { file: File; seccion: ImageSeccion; alt?: string; orden?: number }
+interface ImagePatchInput  { alt?: string | null; orden?: number; seccion?: ImageSeccion }
+```
+
+**El listado es el endpoint público.** No existe ninguno bajo `/api/admin/`, así
+que el panel usa el mismo `GET /api/images` que la landing —misma asimetría que
+precios (§10.4)—, vía `publicJson` (`credentials: 'omit'`). Responde `{ rows }`
+**sin paginación**, con orden fijo `orden ASC, id ASC`; el parámetro `seccion`
+filtra en el servidor. Una pantalla de imágenes **no** lleva `TablePagination`.
+
+**No hay CDN ni carpeta estática, y el JSON no trae ningún campo `url`.** La URL
+pública de una imagen **es** `${API_BASE}/api/images/${id}/raw`, y la construye
+`imageRawUrl(id)` en `src/lib/api.ts` para que `VITE_API_BASE` se aplique en un
+solo sitio. Sin `Cache-Control` ni `ETag`: cada carga es un hit a la BD leyendo
+el `BYTEA`.
+
+### El `POST` es `multipart/form-data`, y por eso `apiJson` no vale
+
+Campo de archivo **`file`**, un solo archivo. Campos: `file` (obligatorio),
+`seccion` (obligatorio), `alt` (opcional, máx 300), `orden` (opcional, entero
+≥ 0, default 0). `alt` y `orden` se **omiten** del `FormData` si no se rellenan,
+en vez de mandarse vacíos.
+
+`apiJson` fija `Content-Type: application/json`; el `Content-Type` correcto aquí
+es `multipart/form-data; boundary=…` y **el boundary solo lo conoce el
+navegador**, que lo genera al serializar el `FormData`. Fijar la cabecera a mano
+deja al backend sin boundary y multer no puede parsear el body. Por eso
+`src/lib/api.ts` tiene un cuarto transporte, `apiUpload`: mismo
+`credentials: 'include'` y misma forma `{ ok, status, data }` que `apiJson`,
+tampoco lanza, y **no fija ninguna cabecera** (ni acepta `headers` desde fuera).
+Nunca un `fetch` suelto en el componente.
+
+**Límites:** 5 MB por archivo; MIME permitidos `image/png`, `image/jpeg`,
+`image/webp`. **SVG está excluido a propósito** (XSS almacenado) — no ofrecerlo en
+el `accept`. Doble validación en el servidor: MIME declarado + coherencia con la
+extensión, y además **magic bytes** que deben coincidir con el MIME declarado (un
+`.jpg` renombrado a `.png` se rechaza con `415`). El cliente valida tipo,
+extensión y tamaño **antes de subir** (`validateImageFile`) para no gastar ancho
+de banda en un envío condenado; los magic bytes solo se comprueban allí.
+
+**El `PATCH` es JSON y solo admite `alt`, `orden` y `seccion`.** El binario,
+`mime_type`, `filename` y `size_bytes` son **inmutables**: cambiar la imagen es
+`POST` nuevo + `DELETE` del viejo. **Por eso la UI no ofrece «reemplazar
+imagen».** El `DELETE` responde `204` sin cuerpo (borrado físico, sin papelera),
+así que `deleteAdminImage` sintetiza el `{ ok: true }` con el mismo molde que
+`deleteAdminUser` (§4 bis, asimetría 3).
+
+Errores:
+
+| Status | Body | Nota |
+|--------|------|------|
+| `413` | `{ error }` o **sin cuerpo** | Archivo demasiado grande. Multer corta antes del handler, así que puede llegar vacío |
+| `415` | `{ error }` | Tipo no permitido, incluido el desajuste de magic bytes |
+| `422` | `{ error, field }` con `field` en `file` \| `seccion` \| `orden` | `alt` no aparece: se trunca, no se rechaza |
+| `404` | `{ error: 'Imagen no encontrada' }` | |
+| `403` | `{ ok: false, error: 'forbidden', message }` | forma anómala, §10.1 → `adminErrorMessage` |
+
+⚠️ El archivo se sube **completo** antes de validar `seccion` (multer corre antes
+del handler), así que un `422` por `seccion` llega tras consumir el ancho de banda.
+
+⚠️ **El rol `editor` no puede escribir imágenes.** Las tres rutas de escritura
+exigen `requireRole('admin')` a secas, a diferencia del CRUD de artículos.
+
 ## 5. Admin — artículos (`/api/admin/articles`)
 
 Privados (`credentials: 'include'`).
@@ -387,19 +480,19 @@ No se mockea `src/lib/api.ts`: los tests interceptan `globalThis.fetch` con
 
 ## 10. Recursos en maquetación (usuarios, imágenes, precios)
 
-> **Usuarios ya no está aquí: se cableó en la feature 32 y su contrato vigente es
-> el §4 bis.** Lo que queda de esta sección son imágenes y precios, que las
-> features 27-30 maquetaron con **datos mock locales** y **sin tocar
+> **Usuarios ya no está aquí (feature 32 → §4 bis) e imágenes tampoco
+> (feature 33 → §4 ter).** Lo único que queda en maquetación es **precios**, que
+> las features 27-30 maquetaron con **datos mock locales** y **sin tocar
 > `src/lib/api.ts`**, por decisión explícita del humano (2026-07-29). Existe para
-> que el cableado restante (features 33 y 34) sea mecánico y para dejar por
-> escrito qué está acordado y qué no.
+> que el cableado restante (feature 34) sea mecánico y para dejar por escrito qué
+> está acordado y qué no.
 >
 > Estado del backend verificado en `/var/www/html/maia-landing-back` el 2026-07-29;
 > informe completo con rutas y líneas en `progress/explore_backend_cruds.md`.
 
 | Recurso | Endpoints en el backend | ¿Consumible? |
 |---|---|---|
-| **Imágenes** | Los 5 existen y funcionan, pero **sin commitear, sin tests y sin desplegar** | No todavía; contrato **cerrado** |
+| **Imágenes** | Los 5 existen | **Sí, ya cableado (feature 33) — contrato en §4 ter** |
 | **Usuarios** | Los 5 existen | **Sí, ya cableado (feature 32) — contrato en §4 bis** |
 | **Precios** | **Nada**: ni tabla, ni módulo, ni modelo de datos decidido | No; propuesta nuestra, sin confirmar |
 
@@ -422,49 +515,19 @@ tratarlo al añadir los helpers.
 imágenes exigen `requireRole('admin')` a secas, a diferencia del CRUD de artículos
 que admite `('admin','editor')`.
 
-### 10.2 Imágenes — contrato real (cerrado, aún no desplegado)
+### 10.2 Imágenes — **movido al §4 ter**
 
-Tabla `images`; el objeto de respuesta tiene **exactamente estos 9 campos** (el
-`bytes` con el binario **nunca** sale por la API):
+El contrato de imágenes dejó de ser «en maquetación» el 2026-07-31: la
+**feature 33** lo cableó y su descripción vigente (las cinco rutas, los tipos, el
+`multipart` y por qué necesita su propio transporte, la URL pública construida a
+partir del `id`, los límites y la tabla de errores) vive ahora en **§4 ter**,
+junto al resto de endpoints que el front consume de verdad. No dupliques aquí
+nada de aquello: si algo cambia, se cambia en §4 ter.
 
-```
-id, seccion, filename, mime_type, size_bytes, alt, orden, created_at, updated_at
-```
-
-| Método | Ruta | Auth | Rol |
-|---|---|---|---|
-| `GET` | `/api/images?seccion=` | pública | — |
-| `GET` | `/api/images/:id/raw` | pública | — |
-| `POST` | `/api/admin/images` | cookie | **solo `admin`** |
-| `PATCH` | `/api/admin/images/:id` | cookie | **solo `admin`** |
-| `DELETE` | `/api/admin/images/:id` | cookie | **solo `admin`** |
-
-- `seccion` es un enum de aplicación: **`'hero'` | `'cta_final'`**. Añadir una tercera
-  es añadir un string en el backend, no un cambio de esquema.
-- Listado envuelto en **`{ rows }`**, **sin paginación**, orden fijo
-  `orden ASC, id ASC`. Detalle en **`{ image }`**.
-- **No hay CDN ni carpeta estática.** La URL pública de una imagen **es**
-  `${API_BASE}/api/images/${id}/raw`, construida en el front con `VITE_API_BASE`.
-  El JSON **no devuelve ningún campo `url`**. Sin `Cache-Control` ni `ETag`: cada
-  carga es un hit a la BD leyendo el `BYTEA`.
-- **`POST` es `multipart/form-data`**, campo de archivo **`file`**, un solo archivo.
-  No fijar `Content-Type` a mano: el navegador genera el boundary del `FormData`.
-  Campos: `file` (obligatorio), `seccion` (obligatorio), `alt` (opcional, máx 300),
-  `orden` (opcional, entero ≥ 0, default 0).
-- **Límites:** 5 MB por archivo; MIME permitidos `image/png`, `image/jpeg`,
-  `image/webp`. **SVG está excluido a propósito** (XSS almacenado) — no ofrecerlo en
-  el `accept`. Doble validación: MIME declarado + coherencia con la extensión, y
-  además **magic bytes** que deben coincidir con el MIME declarado (un `.jpg`
-  renombrado a `.png` se rechaza con 415).
-- **`PATCH` es JSON y solo admite `alt`, `orden` y `seccion`.** El binario,
-  `mime_type`, `filename` y `size_bytes` son **inmutables**: cambiar la imagen es
-  `POST` nuevo + `DELETE` del viejo. **Por eso la UI no ofrece «reemplazar
-  imagen».**
-- `DELETE` → `204` sin cuerpo. Borrado físico, sin papelera.
-- Errores propios: `413` (excede tamaño), `415` (tipo no permitido), `422` con
-  `field` en `file` / `seccion` / `orden`, `404` «Imagen no encontrada».
-- ⚠️ El archivo se sube **completo** antes de validar `seccion` (multer corre antes
-  del handler), así que un `422` por `seccion` llega tras consumir el ancho de banda.
+Lo que decía esta sección era exacto y se verificó punto por punto al cablear;
+las dos únicas cosas que no se sabían de antemano fueron que un `413` puede
+llegar **sin cuerpo** (multer corta antes del handler) y que el `id` llega como
+**string**, igual que en precios.
 
 ### 10.3 Usuarios — **movido al §4 bis**
 

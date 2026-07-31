@@ -8,29 +8,51 @@ import { alpha } from '@mui/material/styles';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
-import type { AdminUser } from '../../lib/api';
+import {
+  IMAGE_ALT_MAX, IMAGE_SECCIONES, ORDEN_ERROR,
+  adminErrorMessage, deleteAdminImage, formatFileSize, imageRawUrl, listImages,
+  normalizeApi, parseOrden, updateAdminImage,
+  type AdminImage, type AdminUser, type ImageSeccion,
+} from '../../lib/api';
 import { tokens } from '../../theme/tokens';
 import ImageUploadDialog from './ImageUploadDialog';
-import {
-  ALT_MAX, ORDEN_ERROR, SECCIONES,
-  deleteMockImage, formatFileSize, listMockImages, mockPreviewUrl, parseOrden, updateMockImage,
-  type MockImage, type MockImageField, type Seccion,
-} from './mockImages';
+
+/**
+ * Etiquetas de las secciones. Es copy, así que vive en la pantalla y no en
+ * `lib/api.ts`; el `Record` sobre `ImageSeccion` obliga a dar etiqueta a
+ * cualquier sección que el contrato añada en el futuro.
+ */
+const ETIQUETAS: Record<ImageSeccion, string> = {
+  hero: 'Hero',
+  cta_final: 'CTA final',
+};
+
+const SECCIONES = IMAGE_SECCIONES.map(value => ({ value, label: ETIQUETAS[value] }));
 
 /** Catálogo del filtro; `''` = todas las secciones, como en `LeadsList`. */
-const FILTROS: { value: '' | Seccion; label: string }[] = [
+const FILTROS: { value: '' | ImageSeccion; label: string }[] = [
   { value: '', label: 'Todas' },
-  ...SECCIONES.map(s => ({ value: s.value, label: s.label })),
+  ...SECCIONES,
 ];
 
-function etiquetaSeccion(seccion: Seccion): string {
-  return SECCIONES.find(s => s.value === seccion)?.label ?? seccion;
-}
+/** Campos que el `PATCH` admite, que son también los inputs del formulario de edición. */
+type EditField = 'alt' | 'orden' | 'seccion';
+
+/**
+ * Mapeo **explícito** del `field` del backend al input de este formulario (ver
+ * la observación 3 de `progress/review_32.md`): una tabla hace visible el día
+ * que el backend renombre un campo, en vez de degradar en silencio. Un nombre
+ * no previsto cae al aviso global.
+ */
+const EDIT_FIELD_BY_BACKEND: Record<string, EditField> = {
+  alt:     'alt',
+  orden:   'orden',
+  seccion: 'seccion',
+};
 
 interface EditProps {
   /** `null` = diálogo cerrado. */
-  image: MockImage | null;
+  image: AdminImage | null;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -43,8 +65,8 @@ interface EditProps {
 function ImageEditDialog({ image, onClose, onSaved }: EditProps) {
   const [alt, setAlt]         = useState('');
   const [orden, setOrden]     = useState('0');
-  const [seccion, setSeccion] = useState<Seccion>('hero');
-  const [errors, setErrors]   = useState<Partial<Record<MockImageField, string>>>({});
+  const [seccion, setSeccion] = useState<ImageSeccion>('hero');
+  const [errors, setErrors]   = useState<Partial<Record<EditField, string>>>({});
   const [saving, setSaving]   = useState(false);
   const [status, setStatus]   = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
@@ -59,7 +81,7 @@ function ImageEditDialog({ image, onClose, onSaved }: EditProps) {
 
   if (!image) return null;
 
-  const clearError = (field: MockImageField) => {
+  const clearError = (field: EditField) => {
     setErrors(prev => (prev[field] ? { ...prev, [field]: undefined } : prev));
   };
 
@@ -67,28 +89,28 @@ function ImageEditDialog({ image, onClose, onSaved }: EditProps) {
     e.preventDefault();
     setStatus(null);
 
-    const next: Partial<Record<MockImageField, string>> = {};
-    if (alt.trim().length > ALT_MAX) next.alt = `Máximo ${ALT_MAX} caracteres`;
+    const next: Partial<Record<EditField, string>> = {};
+    if (alt.trim().length > IMAGE_ALT_MAX) next.alt = `Máximo ${IMAGE_ALT_MAX} caracteres`;
     const ordenNum = parseOrden(orden);
     if (ordenNum === null) next.orden = ORDEN_ERROR;
     setErrors(next);
     if (Object.keys(next).length > 0 || ordenNum === null) return;
 
     setSaving(true);
-    const res = await updateMockImage(image.id, {
-      alt: alt.trim() || null,
-      orden: ordenNum,
-      seccion,
-    });
+    const res = await normalizeApi(
+      updateAdminImage(image.id, { alt: alt.trim() || null, orden: ordenNum, seccion }),
+      'image',
+      'No pudimos guardar los cambios',
+    );
     setSaving(false);
 
     if (res.ok) {
       onSaved();
       return;
     }
-    const { error, field } = res;
-    if (field) setErrors(prev => ({ ...prev, [field]: error }));
-    else       setStatus({ kind: 'error', text: error });
+    const field = res.field ? EDIT_FIELD_BY_BACKEND[res.field] ?? null : null;
+    if (field) setErrors(prev => ({ ...prev, [field]: res.error }));
+    else       setStatus({ kind: 'error', text: adminErrorMessage(res) });
   };
 
   return (
@@ -120,8 +142,8 @@ function ImageEditDialog({ image, onClose, onSaved }: EditProps) {
               value={alt}
               onChange={e => { setAlt(e.target.value); clearError('alt'); }}
               error={!!errors.alt}
-              helperText={errors.alt ?? `Describe la imagen para lectores de pantalla (máx. ${ALT_MAX}). Déjalo vacío para borrarlo.`}
-              inputProps={{ 'aria-label': 'Texto alternativo', maxLength: ALT_MAX }}
+              helperText={errors.alt ?? `Describe la imagen para lectores de pantalla (máx. ${IMAGE_ALT_MAX}). Déjalo vacío para borrarlo.`}
+              inputProps={{ 'aria-label': 'Texto alternativo', maxLength: IMAGE_ALT_MAX }}
               disabled={saving}
               autoFocus
             />
@@ -140,7 +162,7 @@ function ImageEditDialog({ image, onClose, onSaved }: EditProps) {
               select
               label="Sección"
               value={seccion}
-              onChange={e => { setSeccion(e.target.value as Seccion); clearError('seccion'); }}
+              onChange={e => { setSeccion(e.target.value as ImageSeccion); clearError('seccion'); }}
               error={!!errors.seccion}
               helperText={errors.seccion ?? 'Mover la imagen a otra sección de la landing.'}
               disabled={saving}
@@ -163,38 +185,41 @@ function ImageEditDialog({ image, onClose, onSaved }: EditProps) {
 }
 
 /**
- * Administración de las imágenes de la landing (feature 29).
+ * Administración de las imágenes de la landing (maquetada en la feature 29,
+ * cableada en la feature 33).
  *
- * Maqueta: los datos salen de `./mockImages`, no del backend. El contrato real
- * está cerrado (`docs/api-contract.md` §10.2) pero sin commitear ni desplegar,
- * así que aquí no hay ningún `fetch` ni ninguna URL contra el backend; las
- * vistas previas son los estáticos que ya viven en `public/`.
+ * Dos particularidades del contrato (`docs/api-contract.md` §4 ter), no
+ * preferencias de esta pantalla:
  *
- * El listado real responde `{ rows }` sin paginación y ordenado por
- * `orden ASC, id ASC`, así que aquí tampoco se pinta `TablePagination`.
+ * - **El listado sale del endpoint público** `GET /api/images?seccion=`: no hay
+ *   ninguno bajo `/api/admin/`. Responde `{ rows }` sin paginación y ordenado
+ *   por `orden ASC, id ASC`, así que aquí tampoco se pinta `TablePagination`.
+ * - **La vista previa no viene en el JSON**: se construye con `imageRawUrl(id)`,
+ *   que es `${API_BASE}/api/images/:id/raw`.
  */
 export default function ImagesGrid() {
   const sessionUser = useOutletContext<AdminUser>();
   // Las tres rutas de escritura exigen rol `admin`: un editor recibiría un 403.
   const puedeEditar = sessionUser?.role === 'admin';
 
-  const [rows, setRows]         = useState<MockImage[]>([]);
+  const [rows, setRows]         = useState<AdminImage[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
-  const [filtro, setFiltro]     = useState<'' | Seccion>('');
+  const [filtro, setFiltro]     = useState<'' | ImageSeccion>('');
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [editing, setEditing]   = useState<MockImage | null>(null);
-  const [toDelete, setToDelete] = useState<MockImage | null>(null);
+  const [editing, setEditing]   = useState<AdminImage | null>(null);
+  const [toDelete, setToDelete] = useState<AdminImage | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await listMockImages({ seccion: filtro || undefined });
+    const res = await normalizeApi(
+      listImages({ seccion: filtro || undefined }), 'rows', 'No pudimos cargar las imágenes');
     if (res.ok) {
       setRows(res.data.rows);
     } else {
-      setError(res.error);
+      setError(adminErrorMessage(res));
       setRows([]);
     }
     setLoading(false);
@@ -215,11 +240,12 @@ export default function ImagesGrid() {
   const confirmDelete = async () => {
     if (!toDelete) return;
     setDeleting(true);
-    const res = await deleteMockImage(toDelete.id);
+    const res = await normalizeApi(
+      deleteAdminImage(toDelete.id), 'ok', 'No pudimos eliminar la imagen');
     setDeleting(false);
     setToDelete(null);
     if (res.ok) await load();
-    else setError(res.error);
+    else setError(adminErrorMessage(res));
   };
 
   const seccionesVisibles = SECCIONES.filter(s => !filtro || s.value === filtro);
@@ -263,14 +289,17 @@ export default function ImagesGrid() {
           size="small"
           label="Filtrar por sección"
           value={filtro}
-          onChange={e => setFiltro(e.target.value as '' | Seccion)}
+          onChange={e => setFiltro(e.target.value as '' | ImageSeccion)}
           sx={{ minWidth: 220 }}
         >
           {FILTROS.map(f => <MenuItem key={f.value || 'todas'} value={f.value}>{f.label}</MenuItem>)}
         </TextField>
       </Stack>
 
-      {error && <Box sx={{ color: 'error.main', mb: 2, fontSize: 14 }}>{error}</Box>}
+      {/* `role="alert"` porque aquí aterrizan errores que el usuario no puede
+          prever (un 403, un borrado rechazado): un lector de pantalla debe
+          anunciarlos. */}
+      {error && <Box role="alert" sx={{ color: 'error.main', mb: 2, fontSize: 14 }}>{error}</Box>}
 
       {loading && (
         <Box sx={{ py: 6, textAlign: 'center' }}><CircularProgress size={24} /></Box>
@@ -297,78 +326,69 @@ export default function ImagesGrid() {
                   gap: 2,
                 }}
               >
-                {imagenes.map(img => {
-                  const preview = mockPreviewUrl(img);
-                  return (
-                    <Paper
-                      key={img.id}
-                      variant="outlined"
-                      data-testid={`image-card-${img.id}`}
+                {imagenes.map(img => (
+                  <Paper
+                    key={img.id}
+                    variant="outlined"
+                    data-testid={`image-card-${img.id}`}
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      overflow: 'hidden',
+                      transition: 'box-shadow .2s ease',
+                      '&:hover': { boxShadow: `0 4px 16px ${alpha(tokens.brand.orange, 0.1)}` },
+                    }}
+                  >
+                    <Box
                       sx={{
+                        height: 160,
+                        bgcolor: 'surface.soft',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
                         display: 'flex',
-                        flexDirection: 'column',
-                        overflow: 'hidden',
-                        transition: 'box-shadow .2s ease',
-                        '&:hover': { boxShadow: `0 4px 16px ${alpha(tokens.brand.orange, 0.1)}` },
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        p: 1,
                       }}
                     >
+                      {/* El JSON no trae ninguna URL: se construye con el id. */}
                       <Box
-                        sx={{
-                          height: 160,
-                          bgcolor: 'surface.soft',
-                          borderBottom: '1px solid',
-                          borderColor: 'divider',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          p: 1,
-                        }}
-                      >
-                        {preview ? (
-                          <Box
-                            component="img"
-                            src={preview}
-                            alt={img.alt ?? ''}
-                            sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-                          />
-                        ) : (
-                          <Stack alignItems="center" spacing={0.5} sx={{ color: 'text.disabled' }}>
-                            <ImageOutlinedIcon />
-                            <Typography variant="caption">Vista previa no disponible</Typography>
-                          </Stack>
-                        )}
-                      </Box>
+                        component="img"
+                        src={imageRawUrl(img.id)}
+                        alt={img.alt ?? ''}
+                        sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                      />
+                    </Box>
 
-                      <Box sx={{ p: 2, flexGrow: 1 }}>
-                        <Typography variant="subtitle2" fontWeight={700} sx={{ wordBreak: 'break-all' }}>
-                          {img.filename}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          {img.alt || <em style={{ color: tokens.text.disabled }}>Sin texto alternativo</em>}
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
-                          <Chip size="small" variant="outlined" label={`Orden ${img.orden}`} />
-                          <Chip size="small" variant="outlined" label={formatFileSize(img.size_bytes)} />
-                          <Chip size="small" variant="outlined" label={etiquetaSeccion(img.seccion)} />
-                        </Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-                          Subida el {new Date(img.created_at).toLocaleDateString('es-MX')}
-                        </Typography>
+                    <Box sx={{ p: 2, flexGrow: 1 }}>
+                      <Typography variant="subtitle2" fontWeight={700} sx={{ wordBreak: 'break-all' }}>
+                        {img.filename}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        {img.alt || <em style={{ color: tokens.text.disabled }}>Sin texto alternativo</em>}
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
+                        <Chip size="small" variant="outlined" label={`Orden ${img.orden}`} />
+                        <Chip size="small" variant="outlined" label={formatFileSize(img.size_bytes)} />
+                        <Chip size="small" variant="outlined" label={ETIQUETAS[img.seccion] ?? img.seccion} />
                       </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+                        Subida el {new Date(img.created_at).toLocaleDateString('es-MX')}
+                      </Typography>
+                    </Box>
 
-                      {puedeEditar && (
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5, px: 1, pb: 1 }}>
-                          <IconButton size="small" onClick={() => setEditing(img)} aria-label={`Editar ${img.filename}`}>
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton size="small" color="error" onClick={() => setToDelete(img)} aria-label={`Borrar ${img.filename}`}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      )}
-                    </Paper>
-                  );
-                })}
+                    {puedeEditar && (
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5, px: 1, pb: 1 }}>
+                        <IconButton size="small" onClick={() => setEditing(img)} aria-label={`Editar ${img.filename}`}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" color="error" onClick={() => setToDelete(img)} aria-label={`Borrar ${img.filename}`}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    )}
+                  </Paper>
+                ))}
               </Box>
             )}
           </Box>
@@ -377,6 +397,7 @@ export default function ImagesGrid() {
 
       <ImageUploadDialog
         open={uploadOpen}
+        secciones={SECCIONES}
         seccionInicial={filtro}
         onClose={() => setUploadOpen(false)}
         onUploaded={onUploaded}

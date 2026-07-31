@@ -5,38 +5,84 @@ import {
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import {
-  ACCEPTED_MIME_TYPES, ALT_MAX, MAX_FILE_SIZE_BYTES, ORDEN_ERROR, SECCIONES,
-  createMockImage, formatFileSize, parseOrden, validateImageFile,
-  type MockImage, type MockImageField, type Seccion,
-} from './mockImages';
+  ACCEPTED_IMAGE_MIME_TYPES, IMAGE_ALT_MAX, MAX_IMAGE_SIZE_BYTES, ORDEN_ERROR,
+  adminErrorMessage, createAdminImage, formatFileSize, normalizeApi, parseOrden,
+  validateImageFile,
+  type ApiFailure, type ImageSeccion,
+} from '../../lib/api';
 
 interface Props {
   open: boolean;
+  /** Catálogo de secciones con su etiqueta: lo posee `ImagesGrid`, que es quien pinta el copy. */
+  secciones: readonly { value: ImageSeccion; label: string }[];
   /** Sección preseleccionada: la del filtro activo, o `''` si es «Todas». */
-  seccionInicial: Seccion | '';
+  seccionInicial: ImageSeccion | '';
   onClose: () => void;
-  onUploaded: (image: MockImage) => void;
+  onUploaded: () => void;
+}
+
+/** Los cuatro campos del formulario, que son los del `multipart` del contrato. */
+type FormField = 'file' | 'seccion' | 'alt' | 'orden';
+
+/**
+ * Mapeo **explícito** del nombre que usa el backend en sus `422`
+ * (`{ error, field }`, feature 31) al input de este formulario.
+ *
+ * Es una tabla y no un whitelist a propósito (observación 3 de
+ * `progress/review_32.md`): si mañana el backend renombra un campo, la entrada
+ * que falta se ve aquí en vez de romperse en silencio. Los tres nombres son los
+ * que documenta `docs/api-contract.md` §4 ter; `alt` no aparece porque el
+ * backend lo trunca a `IMAGE_ALT_MAX` en vez de rechazarlo. Cualquier otro
+ * nombre cae al aviso global en lugar de marcar un input que no existe.
+ */
+const FIELD_BY_BACKEND: Record<string, FormField> = {
+  file:    'file',
+  seccion: 'seccion',
+  orden:   'orden',
+};
+
+const SUBIDA_ERROR = 'No pudimos subir la imagen';
+
+/**
+ * Copy propio de los dos códigos que el backend puede devolver **sin cuerpo
+ * legible**: multer corta la petición antes del handler, así que un `413` o un
+ * `415` pueden llegar sin `{ error }`. Si el backend sí manda su mensaje, se
+ * muestra el suyo.
+ */
+const STATUS_COPY: Record<number, string> = {
+  413: `El archivo excede el tamaño máximo permitido (${formatFileSize(MAX_IMAGE_SIZE_BYTES)})`,
+  415: `Tipo de archivo no permitido. Formatos aceptados: ${ACCEPTED_IMAGE_MIME_TYPES.join(', ')}`,
+};
+
+/** `413` y `415` siempre hablan del archivo: su mensaje se marca en ese campo. */
+function esErrorDeArchivo(status: number): boolean {
+  return status === 413 || status === 415;
+}
+
+function mensajeDeSubida(res: ApiFailure): string {
+  const propio = STATUS_COPY[res.status];
+  // `res.error === SUBIDA_ERROR` significa que el fallo llegó sin mensaje: ahí,
+  // y solo ahí, el copy de `STATUS_COPY` es mejor que el genérico.
+  if (propio && res.error === SUBIDA_ERROR) return propio;
+  return adminErrorMessage(res);
 }
 
 /**
- * Subida de una imagen (feature 29).
- *
- * Refleja el contrato real del `POST /api/admin/images`: `multipart/form-data`,
- * **un solo archivo** en el campo `file`, más `seccion` (obligatoria), `alt`
- * (opcional, máx 300) y `orden` (opcional, entero >= 0, default 0).
+ * Subida de una imagen (maquetada en la feature 29, cableada a
+ * `POST /api/admin/images` en la feature 33).
  *
  * El tipo y el tamaño se validan **en cliente antes de nada**: el archivo viaja
  * entero por la red antes de que el backend valide `seccion`, así que un envío
- * condenado cuesta ancho de banda de verdad.
- *
- * Hoy la subida va contra `./mockImages` (ver el TODO de ese módulo).
+ * condenado cuesta ancho de banda de verdad. La validación no sustituye a la del
+ * servidor —los *magic bytes* solo se comprueban allí— y por eso los `413`,
+ * `415` y `422` que llegan de vuelta también se muestran.
  */
-export default function ImageUploadDialog({ open, seccionInicial, onClose, onUploaded }: Props) {
+export default function ImageUploadDialog({ open, secciones, seccionInicial, onClose, onUploaded }: Props) {
   const [file, setFile]       = useState<File | null>(null);
-  const [seccion, setSeccion] = useState<Seccion | ''>(seccionInicial);
+  const [seccion, setSeccion] = useState<ImageSeccion | ''>(seccionInicial);
   const [alt, setAlt]         = useState('');
   const [orden, setOrden]     = useState('0');
-  const [errors, setErrors]   = useState<Partial<Record<MockImageField, string>>>({});
+  const [errors, setErrors]   = useState<Partial<Record<FormField, string>>>({});
   const [saving, setSaving]   = useState(false);
   const [status, setStatus]   = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
@@ -51,7 +97,7 @@ export default function ImageUploadDialog({ open, seccionInicial, onClose, onUpl
     setStatus(null);
   }, [open, seccionInicial]);
 
-  const clearError = (field: MockImageField) => {
+  const clearError = (field: FormField) => {
     setErrors(prev => (prev[field] ? { ...prev, [field]: undefined } : prev));
   };
 
@@ -76,11 +122,11 @@ export default function ImageUploadDialog({ open, seccionInicial, onClose, onUpl
     e.preventDefault();
     setStatus(null);
 
-    const next: Partial<Record<MockImageField, string>> = {};
+    const next: Partial<Record<FormField, string>> = {};
     const problema = validateImageFile(file);
     if (problema) next.file = problema.error;
     if (!seccion) next.seccion = 'seccion requerida';
-    if (alt.trim().length > ALT_MAX) next.alt = `Máximo ${ALT_MAX} caracteres`;
+    if (alt.trim().length > IMAGE_ALT_MAX) next.alt = `Máximo ${IMAGE_ALT_MAX} caracteres`;
     const ordenNum = parseOrden(orden);
     if (ordenNum === null) next.orden = ORDEN_ERROR;
     setErrors(next);
@@ -90,21 +136,23 @@ export default function ImageUploadDialog({ open, seccionInicial, onClose, onUpl
     if (!file || !seccion || ordenNum === null) return;
 
     setSaving(true);
-    const res = await createMockImage({
-      file,
-      seccion,
-      alt: alt.trim() || undefined,
-      orden: ordenNum,
-    });
+    const res = await normalizeApi(
+      createAdminImage({ file, seccion, alt: alt.trim() || undefined, orden: ordenNum }),
+      'image',
+      SUBIDA_ERROR,
+    );
     setSaving(false);
 
     if (res.ok) {
-      onUploaded(res.data.image);
+      onUploaded();
       return;
     }
-    const { error, field } = res;
-    if (field) setErrors(prev => ({ ...prev, [field]: error }));
-    else       setStatus({ kind: 'error', text: error });
+    const texto = mensajeDeSubida(res);
+    const field: FormField | null = esErrorDeArchivo(res.status)
+      ? 'file'
+      : (res.field ? FIELD_BY_BACKEND[res.field] ?? null : null);
+    if (field) setErrors(prev => ({ ...prev, [field]: texto }));
+    else       setStatus({ kind: 'error', text: texto });
   };
 
   return (
@@ -128,7 +176,7 @@ export default function ImageUploadDialog({ open, seccionInicial, onClose, onUpl
                 <Box
                   component="input"
                   type="file"
-                  accept={ACCEPTED_MIME_TYPES.join(',')}
+                  accept={ACCEPTED_IMAGE_MIME_TYPES.join(',')}
                   aria-label="Archivo de imagen"
                   onChange={onPickFile}
                   disabled={saving}
@@ -152,7 +200,7 @@ export default function ImageUploadDialog({ open, seccionInicial, onClose, onUpl
               </Box>
 
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-                PNG, JPG o WEBP, hasta {formatFileSize(MAX_FILE_SIZE_BYTES)}. El SVG no se
+                PNG, JPG o WEBP, hasta {formatFileSize(MAX_IMAGE_SIZE_BYTES)}. El SVG no se
                 admite por seguridad. El servidor comprueba el contenido real del archivo:
                 renombrar un .jpg como .png no funciona.
               </Typography>
@@ -168,12 +216,12 @@ export default function ImageUploadDialog({ open, seccionInicial, onClose, onUpl
               select
               label="Sección"
               value={seccion}
-              onChange={e => { setSeccion(e.target.value as Seccion); clearError('seccion'); }}
+              onChange={e => { setSeccion(e.target.value as ImageSeccion); clearError('seccion'); }}
               error={!!errors.seccion}
               helperText={errors.seccion ?? 'Dónde se usará la imagen en la landing.'}
               disabled={saving}
             >
-              {SECCIONES.map(s => <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>)}
+              {secciones.map(s => <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>)}
             </TextField>
 
             <TextField
@@ -181,8 +229,8 @@ export default function ImageUploadDialog({ open, seccionInicial, onClose, onUpl
               value={alt}
               onChange={e => { setAlt(e.target.value); clearError('alt'); }}
               error={!!errors.alt}
-              helperText={errors.alt ?? `Opcional. Describe la imagen para lectores de pantalla (máx. ${ALT_MAX}).`}
-              inputProps={{ 'aria-label': 'Texto alternativo', maxLength: ALT_MAX }}
+              helperText={errors.alt ?? `Opcional. Describe la imagen para lectores de pantalla (máx. ${IMAGE_ALT_MAX}).`}
+              inputProps={{ 'aria-label': 'Texto alternativo', maxLength: IMAGE_ALT_MAX }}
               disabled={saving}
             />
 

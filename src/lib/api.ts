@@ -403,3 +403,201 @@ export function getPublicArticleBySlug(slug: string) {
     { method: 'GET' },
   );
 }
+
+// --- Imágenes (feature 33) ---
+// Contrato en docs/api-contract.md §4 ter. Es el único recurso con dos
+// transportes: el LISTADO es público (`publicJson`, sin cookie) y las tres
+// rutas de escritura son privadas y solo de rol `admin`. La subida no puede ir
+// por `apiJson`: es `multipart/form-data` y el boundary lo pone el navegador.
+
+/** Secciones de la landing que admiten imágenes. Enum de aplicación, no de BD. */
+export const IMAGE_SECCIONES = ['hero', 'cta_final'] as const;
+
+export type ImageSeccion = (typeof IMAGE_SECCIONES)[number];
+
+/**
+ * Fila de `images` tal como la expone la API: los 9 campos de su `META_COLS`.
+ * El binario (`bytes`, `BYTEA`) **nunca** sale por la API y por eso no se modela.
+ *
+ * `id` es **string**: el backend devuelve el `BIGSERIAL` sin castear.
+ */
+export interface AdminImage {
+  id: string;
+  seccion: ImageSeccion;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  alt: string | null;
+  orden: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** `GET /api/images` responde `{ rows }` **sin paginación**, con orden fijo `orden ASC, id ASC`. */
+export interface ImagesListResponse {
+  rows: AdminImage[];
+}
+
+/** Lo que viaja en el `FormData` del POST: un solo archivo en el campo `file`. */
+export interface ImageUploadInput {
+  file: File;
+  seccion: ImageSeccion;
+  alt?: string;
+  orden?: number;
+}
+
+/** El `PATCH` solo admite estos tres campos: el binario es inmutable. */
+export interface ImagePatchInput {
+  alt?: string | null;
+  orden?: number;
+  seccion?: ImageSeccion;
+}
+
+/**
+ * URL pública del binario de una imagen.
+ *
+ * **No hay CDN ni carpeta estática, y el JSON no trae ningún campo `url`**: la
+ * URL pública *es* `${API_BASE}/api/images/${id}/raw` y se construye aquí, no en
+ * los componentes, para que `VITE_API_BASE` se aplique en un solo sitio.
+ */
+export function imageRawUrl(id: string | number): string {
+  return `${API_BASE}/api/images/${id}/raw`;
+}
+
+/** MIME permitidos por el backend. SVG está excluido a propósito (XSS almacenado). */
+export const ACCEPTED_IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;
+
+/** Extensiones válidas por MIME: el backend exige que declaración y extensión coincidan. */
+const IMAGE_EXTENSIONS_BY_MIME: Record<(typeof ACCEPTED_IMAGE_MIME_TYPES)[number], string[]> = {
+  'image/png':  ['.png'],
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/webp': ['.webp'],
+};
+
+/** 5 MB, el límite de multer en el backend. */
+export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+
+/** Longitud máxima del texto alternativo (`ALT_MAX` del backend). */
+export const IMAGE_ALT_MAX = 300;
+
+/** Mensaje del backend, reproducido literalmente para no divergir del copy. */
+export const ORDEN_ERROR = 'orden debe ser un entero >= 0';
+
+/** Tamaño legible a partir del `size_bytes` del contrato: «73 KB», «1.4 MB». */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${Math.round(kb)} KB`;
+  return `${Number((kb / 1024).toFixed(1))} MB`;
+}
+
+function isAcceptedImageMime(mime: string): mime is (typeof ACCEPTED_IMAGE_MIME_TYPES)[number] {
+  return (ACCEPTED_IMAGE_MIME_TYPES as readonly string[]).includes(mime);
+}
+
+/**
+ * Validación de archivo **en cliente, antes de subir nada**: tipo, coherencia
+ * con la extensión y tamaño. Anticipa los `415`/`413` del backend para no gastar
+ * ancho de banda en una subida condenada — el archivo viaja entero antes de que
+ * el handler llegue siquiera a mirar `seccion`.
+ *
+ * Devuelve la misma forma `{ error, field }` que un fallo del backend, así que
+ * el formulario trata igual el rechazo local y el remoto. Lo que no se puede
+ * comprobar aquí son los *magic bytes*: eso lo valida el servidor.
+ */
+export function validateImageFile(file: File | null): { error: string; field: 'file' } | null {
+  if (!file) {
+    return { error: 'Archivo requerido', field: 'file' };
+  }
+  if (!isAcceptedImageMime(file.type)) {
+    return {
+      error: `Tipo de archivo no permitido. Formatos aceptados: ${ACCEPTED_IMAGE_MIME_TYPES.join(', ')}`,
+      field: 'file',
+    };
+  }
+  const nombre = file.name.toLowerCase();
+  if (!IMAGE_EXTENSIONS_BY_MIME[file.type].some(ext => nombre.endsWith(ext))) {
+    return {
+      error: `La extensión no corresponde a ${file.type}. Se esperaba ${IMAGE_EXTENSIONS_BY_MIME[file.type].join(' o ')}`,
+      field: 'file',
+    };
+  }
+  if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    return {
+      error: `El archivo excede el tamaño máximo permitido (${formatFileSize(MAX_IMAGE_SIZE_BYTES)})`,
+      field: 'file',
+    };
+  }
+  return null;
+}
+
+/** `''` = campo ausente → `0`. Cualquier cosa que no sea un entero ≥ 0 devuelve `null`. */
+export function parseOrden(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return 0;
+  if (!/^\d+$/.test(trimmed)) return null;
+  return Number(trimmed);
+}
+
+/**
+ * Listado de imágenes. Es el endpoint **público**, no hay uno bajo `/api/admin/`:
+ * lo consume tanto el panel como la landing. Sin paginación y sin cookie.
+ */
+export function listImages(filtros: { seccion?: ImageSeccion } = {}) {
+  const qs = new URLSearchParams();
+  if (filtros.seccion) qs.set('seccion', filtros.seccion);
+  const query = qs.toString();
+  return publicJson<ImagesListResponse>(`/api/images${query ? `?${query}` : ''}`, { method: 'GET' });
+}
+
+/**
+ * Subida de archivos: igual que `apiJson` (mismo `credentials: 'include'`, misma
+ * forma `{ ok, status, data }`, tampoco lanza) pero **sin fijar `Content-Type`**.
+ *
+ * Es la razón de que exista: con un `FormData`, el navegador escribe
+ * `multipart/form-data; boundary=…` con un boundary que solo él conoce. Fijar la
+ * cabecera a mano —lo que hace `apiJson`— deja al backend sin boundary y multer
+ * no puede parsear el body. Por eso tampoco se acepta `headers` desde fuera.
+ */
+async function apiUpload<T>(path: string, body: FormData): Promise<ApiResult<T>> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    body,
+  });
+  let data: T | { error?: string } | null = null;
+  try { data = await res.json(); } catch { /* sin body */ }
+  return { ok: res.ok, status: res.status, data };
+}
+
+/**
+ * `POST /api/admin/images` — `multipart/form-data` con **un solo archivo** en el
+ * campo `file`. `alt` y `orden` son opcionales: se omiten en vez de mandarse
+ * vacíos, que es lo que el backend espera para aplicar sus valores por defecto.
+ */
+export function createAdminImage(input: ImageUploadInput) {
+  const body = new FormData();
+  body.append('file', input.file);
+  body.append('seccion', input.seccion);
+  if (input.alt) body.append('alt', input.alt);
+  if (input.orden != null) body.append('orden', String(input.orden));
+  return apiUpload<{ image: AdminImage }>('/api/admin/images', body);
+}
+
+/** `PATCH` es JSON y solo admite `alt`, `orden` y `seccion` (§4 ter). */
+export function updateAdminImage(id: string | number, patch: ImagePatchInput) {
+  return apiJson<{ image: AdminImage }>(`/api/admin/images/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+/**
+ * `DELETE` responde `204` sin cuerpo: mismo molde que `deleteAdminUser`. Se
+ * sintetiza el `{ ok: true }` que el 204 no trae y **solo si la respuesta fue
+ * 2xx**, para que un error sin body siga siendo un error.
+ */
+export async function deleteAdminImage(id: string | number): Promise<ApiResult<{ ok: true }>> {
+  const res = await apiJson<{ ok: true }>(`/api/admin/images/${id}`, { method: 'DELETE' });
+  return res.ok && res.data == null ? { ...res, data: { ok: true } } : res;
+}
