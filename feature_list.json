@@ -1,6 +1,6 @@
 {
   "project": "maia-landing-front",
-  "updated_at": "2026-07-30",
+  "updated_at": "2026-07-31",
   "notes": "Backlog vivo. Estados: pending | in_progress | done | blocked. Una feature a la vez, la de menor id entre las pending (ver AGENTS.md §4). Los ids 1-16 corresponden a la construcción original de la app (ya en produccion) y no se re-listan aqui; el backlog abierto arranca en 17.",
   "features": [
     {
@@ -306,6 +306,144 @@
         "docs/api-contract.md"
       ],
       "depends_on": []
+    },
+    {
+      "id": 32,
+      "name": "Cablear la vista de usuarios a /api/admin/users",
+      "status": "pending",
+      "priority": "alta",
+      "description": "Sustituye el mock de src/admin/users/mockUsers.ts por helpers reales en src/lib/api.ts. El contrato esta verificado en docs/api-contract.md §10.3 y el backend esta publicado y respondiendo. Es el primer cableado de los tres, asi que fija el patron que seguiran el 33 y el 34.",
+      "acceptance": [
+        "Helpers nuevos en src/lib/api.ts con apiJson y credentials include: listAdminUsers, getAdminUser, createAdminUser, updateAdminUser, deleteAdminUser",
+        "El listado consume GET /api/admin/users, que devuelve { rows } SIN paginacion (ni total ni limit/offset): no se debe anadir TablePagination",
+        "Detalle y escritura usan { user }; el DELETE devuelve 204 sin cuerpo",
+        "Todas las llamadas pasan por normalizeApi; ninguna reintroduce el patron manual ok && data && 'rows' in data",
+        "Los 409 del backend se muestran con su mensaje: 'No puedes eliminar tu propio usuario' y 'No puedes eliminar al ultimo usuario con rol admin'. La UI sigue deshabilitando el borrado de la fila propia, pero el 409 del ultimo admin solo se puede conocer por respuesta",
+        "Los 422 marcan el campo culpable usando el field que la feature 31 anade a ApiFailure",
+        "password_hash no aparece en ningun tipo del front. password se envia en el POST y es opcional en el PATCH",
+        "Se elimina mockUsers.ts, o queda reducido a fixtures de test si los tests lo necesitan",
+        "Tests con vi.spyOn(globalThis,'fetch') y Response reales, con asercion sobre fetch.mock.calls de URL y metodo. No se mockea src/lib/api.ts",
+        "docs/api-contract.md pasa la seccion de usuarios de §10 (maquetacion) a la zona de endpoints vigentes"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/admin/users/UsersList.tsx",
+        "src/admin/users/UserDialog.tsx",
+        "src/admin/users/mockUsers.ts",
+        "src/admin/__tests__/UsersList.test.tsx",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        31
+      ]
+    },
+    {
+      "id": 33,
+      "name": "Cablear la vista de imagenes a /api/images y /api/admin/images",
+      "status": "pending",
+      "priority": "alta",
+      "description": "Sustituye el mock de src/admin/images/mockImages.ts por helpers reales. Contrato verificado en docs/api-contract.md §10.2. Es el unico cableado con subida de archivos, asi que no puede usar apiJson tal cual: apiJson fija Content-Type application/json y aqui hace falta multipart con boundary generado por el navegador.",
+      "acceptance": [
+        "El listado consume el endpoint PUBLICO GET /api/images?seccion=, que devuelve { rows } sin paginacion",
+        "La subida es POST /api/admin/images con multipart/form-data, campo de archivo 'file', y NO fija Content-Type a mano: lo genera el navegador con su boundary. Si apiJson no sirve, se anade un helper de subida propio en src/lib/api.ts, nunca un fetch en el componente",
+        "La edicion es PATCH con JSON y solo alt, orden y seccion; el binario sigue siendo inmutable y la UI sigue sin ofrecer 'reemplazar imagen'",
+        "El borrado es DELETE con 204 sin cuerpo",
+        "Los previews apuntan a la URL publica real ${API_BASE}/api/images/${id}/raw, construida con VITE_API_BASE. El JSON no trae ningun campo url",
+        "El id se trata como string: el backend devuelve el BIGSERIAL sin castear",
+        "Los codigos propios del backend se muestran con su mensaje: 413 archivo demasiado grande, 415 tipo no permitido, 422 con field. La validacion en cliente de tipo y tamano se mantiene: evita subir 5 MB para recibir un rechazo",
+        "Se elimina mockImages.ts, o queda reducido a fixtures de test",
+        "Tests con vi.spyOn(globalThis,'fetch') y Response reales; se comprueba que el POST envia FormData y que no se fija Content-Type",
+        "docs/api-contract.md pasa la seccion de imagenes a la zona de endpoints vigentes"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/admin/images/ImagesGrid.tsx",
+        "src/admin/images/ImageUploadDialog.tsx",
+        "src/admin/images/mockImages.ts",
+        "src/admin/__tests__/ImagesGrid.test.tsx",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        31
+      ]
+    },
+    {
+      "id": 34,
+      "name": "Cablear la vista de precios a /api/precios y /api/admin/precios",
+      "status": "pending",
+      "priority": "alta",
+      "description": "Sustituye el mock de src/admin/prices/mockPrices.ts por helpers reales. Contrato verificado en docs/api-contract.md §10.4. Tiene una asimetria comprobada contra el servidor vivo: NO existe GET /api/admin/precios, responde 404 y no 401.",
+      "acceptance": [
+        "El LISTADO sale del endpoint PUBLICO GET /api/precios, porque no existe un listado bajo /api/admin/. Verificado: GET /api/admin/precios responde 404",
+        "El detalle y la escritura usan /api/admin/precios[/:id] con { plan }; el DELETE devuelve 204",
+        "precio_anual y ahorro_anual NO se envian nunca en el POST ni en el PATCH: el backend los deriva. Enviarlos seria inventar campos de escritura",
+        "La UI sigue mostrandolos calculados y de solo lectura, y sigue detectando los planes Custom por es_custom y nunca por el nulo (ver la discrepancia de §10.4)",
+        "El id se trata como string",
+        "Los 422 marcan el campo culpable con el field de ApiFailure",
+        "Se elimina mockPrices.ts, o queda reducido a fixtures de test",
+        "Tests con vi.spyOn(globalThis,'fetch') y Response reales, comprobando que el listado pega al endpoint publico y la escritura al de admin",
+        "docs/api-contract.md pasa la seccion de precios a la zona de endpoints vigentes"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/admin/prices/PricesList.tsx",
+        "src/admin/prices/PlanEditDialog.tsx",
+        "src/admin/prices/mockPrices.ts",
+        "src/admin/__tests__/PricesList.test.tsx",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        31
+      ]
+    },
+    {
+      "id": 35,
+      "name": "La seccion de precios de la landing consume /api/precios",
+      "status": "pending",
+      "priority": "media",
+      "description": "Sustituye el array plans hard-coded de src/components/sections/Pricing.tsx:11-37 por el endpoint publico GET /api/precios. ATENCION: esta es la ruta critica del negocio, y las tablas del backend estan VACIAS mientras no se carguen datos por el panel. Una landing de captacion no puede quedarse sin precios porque la API este vacia, falle o el servicio de Render este dormido.",
+      "acceptance": [
+        "Pricing.tsx consume GET /api/precios via un helper de src/lib/api.ts con normalizeApi. Cero fetch en el componente",
+        "DECISION EXPLICITA Y DOCUMENTADA del fallback cuando la API devuelve rows vacio, falla o tarda: la seccion NO puede quedarse en blanco. Se decide entre mantener los planes actuales como valor por defecto o mostrar un estado alternativo, y se justifica en el informe",
+        "El mapeo respeta el contrato: nombre, precio_mensual, precio_anual (mensual facturando anual, no el total del ano), ahorro_anual, vinetas, vinetas_tachadas, destacado, trial_texto",
+        "Los planes con es_custom no pintan cifras: nada de $0 ni de 'Ahorras $0/ano'",
+        "El toggle mensual/anual sigue funcionando con los datos de la API, y el descuento que se muestra sale de descuento_pct y no del Chip 'Ahorra 10%' hard-coded",
+        "Se anade estado de carga a una seccion que hoy es instantanea, sin provocar salto de layout",
+        "Tests con vi.spyOn(globalThis,'fetch'): render con datos, con rows vacio, y con fallo de red"
+      ],
+      "files": [
+        "src/components/sections/Pricing.tsx",
+        "src/lib/api.ts",
+        "src/components/sections/__tests__/Pricing.test.tsx",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        34
+      ]
+    },
+    {
+      "id": 36,
+      "name": "El Hero y el CTA final consumen las imagenes de la API",
+      "status": "pending",
+      "priority": "media",
+      "description": "Sustituye los estaticos de public/ por GET /api/images?seccion=. Hoy Hero.tsx:10-12 usa hero.png, hero-2.png y hero-3.png para el carrusel, y CTAFinal.tsx:42 usa maia.png. Mismo aviso que la feature 35: las tablas estan vacias hasta que se carguen imagenes por el panel, y el carrusel del Hero es lo primero que ve un visitante.",
+      "acceptance": [
+        "Hero consume seccion 'hero' y CTAFinal consume seccion 'cta_final', via helper de src/lib/api.ts. Cero fetch en los componentes",
+        "DECISION EXPLICITA Y DOCUMENTADA del fallback: si la API devuelve vacio o falla, se siguen usando los estaticos de public/. El Hero no puede quedarse sin imagen",
+        "El src de cada img es ${API_BASE}/api/images/${id}/raw y el alt sale del campo alt de la API",
+        "Se respeta el orden que da el backend (orden ASC, id ASC)",
+        "Ojo al rendimiento: ese endpoint sirve el binario desde Postgres sin Cache-Control ni ETag, asi que cada carga es un hit a la base. Si se detecta un coste inaceptable, documentarlo en vez de inventar una cache",
+        "Tests con vi.spyOn(globalThis,'fetch'): render con imagenes de la API, y fallback con rows vacio y con fallo de red"
+      ],
+      "files": [
+        "src/components/sections/Hero.tsx",
+        "src/components/sections/CTAFinal.tsx",
+        "src/lib/api.ts",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        33
+      ]
     }
   ]
 }
