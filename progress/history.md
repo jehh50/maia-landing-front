@@ -2162,3 +2162,252 @@ señalados como flakes; se corrió **una sola suite a la vez** en las tres pasad
   `/api/admin/precios` (ni los de usuarios/imágenes) y su §9 sigue diciendo que
   precios está «en maquetación con datos mock». **Ya es candidato a feature propia
   de documentación**, no a nota al pie.
+
+---
+
+## 2026-07-31 — Feature 35: La sección de precios de la landing consume `/api/precios`
+
+**Estado final:** done — **APROBADO** en `progress/review_35.md` (los **8
+`acceptance`** con archivo y línea en su §1, los **11 checkpoints** C1-C11 en
+verde, sin rechazo previo). Informe del implementer en `progress/impl_35.md`.
+**Rama / commit:** `feat/admin-cruds` · `3332924` · **5 archivos**:
+`src/components/sections/Pricing.tsx`,
+`src/components/sections/__tests__/Pricing.test.tsx` (reescrito),
+`src/theme/__tests__/brandAlpha.test.tsx`, `docs/api-contract.md` y el propio
+informe. **`src/lib/api.ts` NO se tocó** (`git diff --stat` vacío): los helpers de
+la 34 (`listPlanes`, `AdminPlan`, `formatMoneda`, `normalizeApi`) bastaban.
+
+**Qué se hizo:**
+
+- **`Pricing.tsx` cableado a `GET /api/precios`** vía
+  `normalizeApi(listPlanes(), 'rows', …)`, con máquina de estados
+  `'loading' | 'ok' | 'error'` (`conventions.md` §5, no un booleano) y guarda
+  `vigente` contra `setState` tras desmontar. **Cero `fetch` en el componente**, y
+  no por disciplina: `apiJson`/`publicJson` **no se exportan** de `api.ts`, así que
+  la frontera la garantiza el módulo.
+- **El array `plans` (4 planes, 27 líneas) y su `interface Plan` se ELIMINARON.**
+  No quedan como valor por defecto ni como constante muerta. El componente importa
+  `AdminPlan` de `api.ts` en vez de redeclarar un tipo local.
+- **El fallback decidido por el humano, aplicado tal cual:** `rows: []`, `4xx`,
+  `5xx`, body sin `rows` y fallo de red convergen en el mismo
+  `if (estado !== 'ok' || planes.length === 0) return null;`.
+- **El chip «Ahorra 10%» hard-codeado murió:** la etiqueta sale de
+  `descuento_pct`, que es **por plan** — sin descuentos no hay chip, iguales →
+  «Ahorra X%», distintos → «Ahorra **hasta** X%», y los `es_custom` se excluyen del
+  cálculo (su `descuento_pct: 0` convertiría un «Ahorra 10%» honesto en un «hasta
+  10%» falso).
+- **`Pricing.test.tsx` reescrito: 22 casos** con `vi.spyOn(globalThis, 'fetch')` y
+  `Response` reales, sin mockear `src/lib/api.ts`. Los 5 tests anteriores no se
+  borraron sin sustituto (tabla de equivalencias en `review_35.md` §9).
+- **`docs/api-contract.md`:** §4 quater suma la landing como consumidora del
+  endpoint público y registra el fallback; §10.4 pasa a histórico.
+
+**Decisiones que importan:**
+
+- **Por qué NO hay esqueleto de carga.** Los acceptance 3 y 7 tiran en direcciones
+  opuestas: un placeholder con la altura de la sección tendría que **retirarse** en
+  los tres casos de fallback —que hoy, con las tablas vacías, son el caso
+  *normal*—, y eso **es** el parpadeo «se pinta y desaparece» que el acceptance 3
+  prohíbe. Se eligió una sola transición visible: nada → sección definitiva. El
+  reflujo cae fuera del viewport (la sección arranca en `pricingTop=4668` a 1440 px
+  y `7504` a 360 px, medición de `impl_26.md` §5; CLS solo puntúa desplazamientos
+  visibles), y los `.reveal` tardíos siguen animando por el `MutationObserver` de
+  `useReveal`.
+- **`es_custom` decide, nunca el nulo.** Una sola línea (`Pricing.tsx:123`):
+  `const importe = p.es_custom ? null : (isAnnual ? p.precio_anual : p.precio_mensual);`
+  El backend manda `precio_mensual: 0` (no `null`) en un plan a convenir, así que
+  fiarse del nulo pintaría «$0» en el Enterprise. El test 16 manda `es_custom: true`
+  **con las cifras rellenas** (349/314/420) y exige que no aparezca ninguna.
+- **`precio_anual` es el mensual facturando anual, no el total del año.** No se
+  recalcula ni se usa `derivarPrecios` (reservado a la vista previa del panel): el
+  test 7 afirma que aparecen `17`/`179` y que **no** aparecen `204` ni `2,148`.
+- **Se borró una guarda inalcanzable en vez de declarar «doble protección».** La
+  mutación M8 (quitar el `es_custom` del cálculo del ahorro) salió **verde** con
+  razón: dentro de la rama `importe !== null`, `es_custom` ya es `false` por
+  construcción. El implementer borró el código muerto en vez de inventarse una
+  protección que ningún test honesto podía distinguir. Mismo tipo de hallazgo que
+  la M13 de la feature 34.
+- **Rejilla adaptativa:** las columnas pasan de `repeat(4, 1fr)` fijo a
+  `min(planes.length, 4)` con `maxWidth` centrado. Con 4 o más planes el render es
+  **idéntico**; es consecuencia directa de que el número de planes deje de ser una
+  constante, no un rediseño.
+
+**El archivo fuera de la lista, declarado y no colado:**
+`src/theme/__tests__/brandAlpha.test.tsx` (feature 25) **renderiza `Pricing`** para
+leer el CSS que Emotion inyecta, y sus dos aserciones exigen una tarjeta
+`destacado` y un `trial_texto`. Sin datos no hay tarjeta, sin tarjeta no hay CSS:
+el test pasó a rojo por la propia feature. El implementer lo adaptó al mínimo
+(fixture por `fetch`, `await` del heading, `afterEach(vi.restoreAllMocks)`), **con
+las dos aserciones de color idénticas byte a byte**, y lo declaró en el commit y en
+`impl_35.md`. El revisor lo juzgó **inevitable y andamiaje puro** (las tres
+alternativas eran peores, incluida la prohibida por el acceptance 2) y **lo
+comprobó mutando el color del borde del distintivo: `brandAlpha` sale ROJO**, o sea
+que el test adaptado sigue detectando deriva de color. C10 sigue `[x]`.
+
+**Sobre la review:** el revisor **no se fió del informe**. Reejecutó el bloque
+completo, repitió las comprobaciones estáticas una a una, y buscó respaldo
+hard-codeado en **las cuatro formas posibles** (constante en el componente, valor
+por defecto del `useState`, mock importado en producción y rastro en el resto de
+`src/`): cero en las cuatro. Aplicó **8 mutaciones**, cada una sola, con la suite
+aislada y `git checkout --` entre ellas: **las 8 en rojo**, incluida **M10**
+(reintroducir un `RESPALDO: AdminPlan[]` cuando `rows` viene vacío o la API falla)
+→ **ROJO, 4 tests**, y **M2** (esqueleto de carga que luego hay que quitar) →
+**ROJO, 4 tests**. El acceptance 2 está protegido por tests, no por buena voluntad.
+
+**Verificación:** `npm test` **18 archivos / 176 tests** exit **0** ·
+`npm run typecheck` exit **0** · `npm run build` exit **0** (aviso esperado de
+chunk >500 kB). Baseline `18 / 159` → **`18 / 176`**: **+17 netos** (22 casos
+nuevos − 5 anteriores), **0 archivos nuevos** (se reescribió el test), **0 tests
+previos rotos**. Ningún flake se manifestó; una sola suite a la vez.
+
+**Pendiente que deja:**
+
+- **Los enlaces `#pricing` se quedan sin destino cuando no hay planes**
+  (`Navbar.tsx:10`, `Footer.tsx:8`): el clic no hace nada. Es consecuencia directa
+  del fallback decidido, no un defecto; el implementer lo **levantó** en vez de
+  arreglarlo por su cuenta (habría roto C10). Feature propia.
+- **`key={v}` con el texto de la viñeta** (`Pricing.tsx:172,175`): las dos listas
+  se pintan como hermanas en el mismo `<ul>`, así que un admin que repita una
+  cadena produce claves duplicadas. Era inocuo con datos constantes; ahora los
+  teclea una persona en el panel. Arreglo de una línea.
+- **Sin validación de forma de la respuesta y sin `ErrorBoundary` en `main.tsx`:**
+  una fila con `vinetas: null` —imposible según contrato— se llevaría por delante
+  **toda la landing**, no solo la sección. Es el patrón de todo el repo, pero en la
+  ruta crítica merece feature propia.
+- **Verificación manual pendiente y justificada:** hoy `GET /api/precios` responde
+  `{"rows":[]}`, así que lo correcto según el acceptance 2 es **no ver nada**. En
+  cuanto se den de alta planes conviene una pasada a 360 px y 1440 px, sobre todo a
+  la rejilla con 1, 2 y 3 planes, que ningún test mide en píxeles.
+
+---
+
+## 2026-07-31 — Feature 36: El Hero y el CTA final consumen las imágenes de la API
+
+**Estado final:** done — **APROBADO** en `progress/review_36.md` (los **6
+`acceptance`** con archivo y línea en su §1, los **11 checkpoints** C1-C11 en
+verde, sin rechazo previo). Informe del implementer en `progress/impl_36.md`.
+**Rama / commit:** `feat/admin-cruds` · `7e9c200` · **6 archivos**:
+`src/components/sections/Hero.tsx`, `src/components/sections/CTAFinal.tsx`,
+`src/components/sections/__tests__/Hero.test.tsx` (**nuevo**),
+`src/components/sections/__tests__/CTAFinal.test.tsx` (**nuevo**),
+`docs/api-contract.md` y el propio informe. **`src/lib/api.ts` NO se tocó** pese a
+estar en el `files` de la feature: los helpers de la 33 (`listImages`,
+`imageRawUrl`, `AdminImage`) bastaban. **Ningún archivo fuera de la lista**: no se
+repitió el caso `brandAlpha.test.tsx` de la 35.
+
+**Con esta feature queda CERRADO todo el cableado del front contra la API:** los
+tres CRUD del admin (32-34) y las dos secciones de la landing (35 y 36). **No queda
+ninguna feature en `pending`** en `feature_list.json`.
+
+**Qué se hizo:**
+
+- **`Hero.tsx`** consume `listImages({ seccion: 'hero' })` y **`CTAFinal.tsx`**
+  `listImages({ seccion: 'cta_final' })`, los dos vía `normalizeApi`. El filtro va
+  **al servidor** (`?seccion=`), no un `filter()` en cliente. Cero `fetch` en los
+  componentes. **`HERO_SLIDES` eliminado** (`grep` → 0).
+- **Tres estados, iguales en las dos secciones:** *cargando* → el marco con su
+  `aspectRatio` final y **ninguna `<img>`**; *con datos* → una `<img>` por fila en
+  el orden del backend (CTAFinal pinta `imagenes[0]`); *`rows: []` / 4xx-5xx /
+  fallo de red* → **una sola** estática (`/hero.png`, `/maia.png`), sin flechas ni
+  puntos.
+- **Contrato:** el `src` se **construye** con `imageRawUrl(id)` (no hay campo `url`
+  en el JSON: 9 campos exactos), el `alt` sale de la API y `alt: null` → `alt=""`
+  (decorativa, `conventions.md` §6), el `id` es **string** (fixtures con
+  `'9007199254740993'`, por encima de `MAX_SAFE_INTEGER`).
+- **Los controles solo existen con ≥2 imágenes**, y el `setInterval` de 5 s no se
+  arma con `total <= 1`: ni flechas que no llevan a ningún sitio ni un temporizador
+  girando sobre una sola diapositiva.
+- **18 tests nuevos** en dos archivos (`Hero.test.tsx` 10, `CTAFinal.test.tsx` 8)
+  con `vi.spyOn(globalThis, 'fetch')` y `Response` reales, sin mockear
+  `src/lib/api.ts`.
+
+**Decisiones que importan:**
+
+- **Degradar a un estático y no ocultar el carrusel** (una de las **dos ramas que
+  el propio acceptance 2 preautorizaba**). El argumento decisivo y sólido: **una
+  imagen vieja no engaña como un precio viejo**. El fallback de la 35 no se decidió
+  por layout sino por verdad del dato («no mostrar precios obsoletos como si fueran
+  vigentes»); una captura de producto es material ilustrativo y no afirma nada
+  falso. Lo que **sí** trasladaba de la 35 —no inventar datos ni mezclar respaldo
+  con filas reales— se respeta: es un `if/else` excluyente que jamás concatena.
+  Además, ocultar el marco sería CLS **visible**: mide ~540 px de alto dentro del
+  primer viewport, al revés que precios (~4 700 px bajo el pliegue).
+- **Una sola estática, no las tres de antes.** Conservar `HERO_SLIDES` habría
+  dejado en el componente el mismo array hard-codeado que la 35 borró de `Pricing`,
+  y un fallo total de la API se vería **idéntico** a la landing de ayer. El revisor
+  matizó el argumento: la señal «modo degradado» **no la percibe el visitante**
+  (el canal correcto es monitorización); el beneficio real es de **mantenibilidad**,
+  y la contrapartida —tres capturas pasan a una en la ruta crítica— el informe no la
+  contabiliza. No cambia la decisión.
+- **Cero flip: el respaldo nunca se pinta para ser sustituido.** Pintar el estático
+  desde el primer render habría quitado el marco vacío inicial, pero produce el
+  parpadeo que la 35 prohibió. El marco pasa de vacío a su contenido definitivo en
+  **una sola** transición, con un `MutationObserver` que anota el `src` de toda
+  `<img>` que llegue a montarse y exige que `/hero.png` **nunca** aparezca cuando
+  hay datos.
+- **`CTAFinal` reserva la proporción.** El `<img>` iba con `height: 'auto'`, o sea
+  que su alto lo decidía la imagen: con una imagen de otra proporción la tarjeta
+  entera cambiaba de alto al cargar. Ahora es un `Box` con `aspectRatio: '408 / 612'`
+  y la imagen en `contain`. Con `/maia.png` el render es **idéntico** (340×510 en
+  ambos casos) y el `borderRadius: 20` se conserva con `overflow: 'hidden'`.
+- **Rendimiento medido, no razonado a ojo, y NO se inventó caché.** El backend
+  local ya tenía las 4 imágenes cargadas por el panel (3 en `hero`, 1 en
+  `cta_final`). Coste por petición irrelevante (2-13 ms); el problema real es que
+  **sin `Cache-Control` ni `ETag` cada carga y cada recarga se lleva los ≈556 KB**,
+  donde antes `public/` iba por el CDN de Vercel, y que **el LCP gana dos viajes en
+  serie** (HTML → JS → listado → binario) contra el servidor de aplicación. La
+  recomendación va **al backend**, en prosa: el binario es inmutable por `id`, así
+  que `max-age=31536000, immutable` + `ETag` es seguro.
+
+**Sobre la review:** el revisor **no se fió del informe**. Reejecutó el bloque,
+repitió las estáticas, y **contrastó la medición contra el servidor real**: los
+`size_bytes` suman **556 101 B exactos** (no un redondeo a ojo) y son la cifra
+correcta «por carga de landing» porque el Hero **monta las tres `<img>` a la vez**
+(las inactivas van con `opacity: 0`); confirmó con `curl -D-` que **no hay
+`Cache-Control`, `ETag` ni `Last-Modified`**; y verificó que no se coló ninguna
+caché en cliente (`grep localStorage|sessionStorage|Cache` → 0, una sola petición
+por montaje). Aplicó **14 mutaciones**, cada una sola, una suite a la vez y
+revirtiendo antes de la siguiente (`git diff` final vacío): **13 en rojo**.
+
+**Verificación:** `npm test` **20 archivos / 194 tests** exit **0** ·
+`npm run typecheck` exit **0** · `npm run build` exit **0** (aviso esperado de
+chunk >500 kB). Baseline `18 / 176` → **`20 / 194`**: **+18 netos**, 2 archivos
+nuevos, **0 tests previos tocados ni rotos** — `AppRoutes.test.tsx` y
+`NotFound.test.tsx` montan la ruta `/` completa pero ya interceptaban `fetch` con
+`{ rows: [] }`, así que hoy ejercitan el camino de respaldo y siguen verdes solos.
+**Esa es la diferencia práctica del fallback elegido:** una sección que nunca
+desaparece no arrastra a quien la renderice, al revés que la 35. Medido tres veces
+(implementer, revisor y este cierre), sin un solo flake.
+
+**Pendiente que deja (los dos primeros son los hallazgos vivos de la review):**
+
+- **`Hero.tsx:236-247` — el marco vacío del estado de carga se vuelve PERMANENTE
+  si el backend de Render está dormido.** Es la ruta crítica: la cadena es HTML →
+  JS → `GET /api/images` → binario, y con el servicio frío la primera petición
+  puede tardar **decenas de segundos** con el primer viewport enseñando un marco de
+  ~540 px **completamente vacío**. No incumple el acceptance 2 y la alternativa
+  obvia (pintar el estático desde el primer render) reintroduce el parpadeo que
+  prohibió la 35, pero la mitigación es barata y **no está**: `timeout` corto (2-3 s)
+  → estado `error` → respaldo, o un placeholder con `/hero.png` difuminada.
+  **Feature propia; decisión del humano.** Es el hallazgo más importante de esta
+  tanda.
+- **`Hero.test.tsx:40-46` no discrimina:** de las 14 mutaciones del revisor, 13
+  salieron rojas y **H1 (ordenar por `id` en cliente) salió VERDE**, porque los tres
+  `id` de la fixture están en orden ascendente y coinciden con `orden`. El
+  acceptance 4 sí tiene verificación discriminante en la otra mitad
+  (`CTAFinal.test.tsx:28-29` pone a propósito un `id` mayor en la primera fila, y
+  C1 sale en rojo) y el componente no contiene ningún `sort`: es laguna de fixture,
+  no de comportamiento. **Arreglo de una línea:** dar a `SEGUNDA` un `id` menor que
+  el de `PRIMERA`.
+- **`public/hero-2.png` y `public/hero-3.png` quedan sin referenciar desde `src/`**
+  pero siguen viajando a `dist/` (Vite copia `public/` tal cual): ~170 KB muertos
+  por despliegue. El implementer hizo bien en no borrarlos (fuera de su lista).
+  Limpieza aparte.
+- **Sin `onError` en las `<img>`** (`Hero.tsx:248-264`, `CTAFinal.tsx:114-121`): si
+  el listado responde 200 pero el binario de un `id` da 404 —imagen borrada por el
+  panel entre el listado y la descarga— sí saldría el glifo de imagen partida.
+  Carrera estrecha, anotada por completitud.
+- **Pasada visual a 360 px y 1440 px pendiente** (`verification.md` §6), y ahora
+  **sí es significativa** porque el backend tiene las cuatro imágenes cargadas:
+  mirar que el marco del Hero no parpadee al llegar la respuesta y que el CTA no
+  cambie de alto.

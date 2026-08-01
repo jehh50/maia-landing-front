@@ -399,7 +399,7 @@
     {
       "id": 35,
       "name": "La seccion de precios de la landing consume /api/precios",
-      "status": "pending",
+      "status": "done",
       "priority": "media",
       "description": "Sustituye el array plans hard-coded de src/components/sections/Pricing.tsx:11-37 por el endpoint publico GET /api/precios. ATENCION: esta es la ruta critica del negocio, y las tablas del backend estan VACIAS mientras no se carguen datos por el panel. Una landing de captacion no puede quedarse sin precios porque la API este vacia, falle o el servicio de Render este dormido. FALLBACK DECIDIDO: ocultar la seccion cuando no hay datos (no se conservan los planes hard-codeados). Consecuencia asumida por el humano: con las tablas vacias, hoy la seccion no se pintaria hasta cargar planes por el panel.",
       "acceptance": [
@@ -425,7 +425,7 @@
     {
       "id": 36,
       "name": "El Hero y el CTA final consumen las imagenes de la API",
-      "status": "pending",
+      "status": "done",
       "priority": "media",
       "description": "Sustituye los estaticos de public/ por GET /api/images?seccion=. Hoy Hero.tsx:10-12 usa hero.png, hero-2.png y hero-3.png para el carrusel, y CTAFinal.tsx:42 usa maia.png. Mismo aviso que la feature 35: las tablas estan vacias hasta que se carguen imagenes por el panel, y el carrusel del Hero es lo primero que ve un visitante. FALLBACK DECIDIDO: coherente con la 35, no se pintan imagenes de la API si no las hay. El tratamiento visual concreto del Hero vacio se justifica en el informe.",
       "acceptance": [
