@@ -372,7 +372,9 @@ exigen `requireRole('admin')` a secas, a diferencia del CRUD de artículos.
 
 ## 4 quater. Precios (`/api/precios` + `/api/admin/precios`) — **vigente**
 
-Consumidos desde la **feature 34**. Tabla `planes`; el objeto `plan` (`toPlan()`,
+Consumidos desde la **feature 34** (panel) y, el público `GET /api/precios`,
+también desde la **feature 35** (`src/components/sections/Pricing.tsx`, la sección
+de precios de la landing). Tabla `planes`; el objeto `plan` (`toPlan()`,
 `src/precios.js:91-116`) tiene **exactamente estos 14 campos**:
 
 ```
@@ -499,6 +501,25 @@ El `DELETE` responde `204` sin cuerpo, así que `deleteAdminPlan` sintetiza el
 responde `200 { "rows": [] }` hasta que se carguen planes **desde el panel**. Por
 eso la pantalla de admin ofrece alta y borrado además de edición: sin `POST` no
 hay forma de que la landing (feature 35) llegue a tener precios que mostrar.
+
+### Qué hace la landing cuando no hay datos (decisión del humano, 2026-07-31)
+
+`src/components/sections/Pricing.tsx` consume este mismo `GET /api/precios` desde
+la **feature 35**, vía `listPlanes` + `normalizeApi(…, 'rows')`, y **si la
+respuesta trae `rows: []`, falla o no llega, la sección entera no se renderiza**.
+No hay respaldo: el array `plans` hard-codeado que vivía en el componente se
+eliminó, porque enseñar un precio viejo como si fuera vigente es peor que no
+enseñar ninguno. Consecuencia asumida: con las tablas vacías, hoy la sección de
+precios **no aparece** en la landing hasta que se den de alta planes en el panel
+(y con ella dejan de tener destino los enlaces `#pricing` de `Navbar` y `Footer`).
+
+Dos detalles del mapeo que el contrato impone a esa sección:
+
+- El precio grande es `precio_anual` cuando el toggle está en anual —**el mensual
+  facturando anualmente**, no el total del año— y `precio_mensual` cuando no.
+- El descuento que anuncia el chip sale de `descuento_pct`, que es **por plan**:
+  se muestra el mayor, y solo se afirma «Ahorra X%» a secas cuando todos los
+  planes con precio comparten ese descuento. Los `es_custom` no cuentan.
 
 ## 5. Admin — artículos (`/api/admin/articles`)
 
@@ -747,10 +768,12 @@ Siguen vigentes dos datos de contexto que no son contrato:
   rol `editor` ya puede eliminar publicaciones (la relajación de permisos que
   §10.3 daba por pendiente).
 
-**La relación con la landing:** `src/components/sections/Pricing.tsx` sigue con su
-array `plans` hard-coded y **no se tocó** en la feature 34. Conectarla es la
-feature 35; el mapeo contra el contrato real sería `nombre → name`,
-`precio_mensual → monthly`, `precio_anual → annual`, `ahorro_anual → saving` (hoy
-un string libre en el front), `vinetas → features`, `vinetas_tachadas → dim`,
+**La relación con la landing (cerrada en la feature 35):**
+`src/components/sections/Pricing.tsx` conservó su array `plans` hard-coded durante
+la feature 34, que **no lo tocó**. La feature 35 lo eliminó y cableó la sección al
+endpoint público; lo vigente está en **§4 quater**, incluido el fallback de
+«sin datos, sin sección». El mapeo que aquí se anticipaba era `nombre → name`,
+`precio_mensual → monthly`, `precio_anual → annual`, `ahorro_anual → saving`
+(entonces un string libre en el front), `vinetas → features`, `vinetas_tachadas → dim`,
 `destacado → featured`, `trial_texto → trial`, y `es_custom` como el caso sin
 precio.

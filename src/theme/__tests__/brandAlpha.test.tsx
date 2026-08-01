@@ -1,12 +1,13 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { tokens } from '../tokens';
 import theme from '../theme';
 import Pain from '../../components/sections/Pain';
 import Pricing from '../../components/sections/Pricing';
 import Solution from '../../components/sections/Solution';
+import type { AdminPlan } from '../../lib/api';
 
 /**
  * Feature 25. Las sombras, gradientes y bordes teñidos de marca de `Pain`,
@@ -64,6 +65,17 @@ const squash = (css: string) => css.replace(/\s+/g, '');
 /** CSS que Emotion ha inyectado en el documento hasta este momento. */
 const emittedCss = () => squash(document.head.textContent ?? '');
 
+/** Plan mínimo del contrato (§4 quater) con `destacado` y `trial_texto`. */
+const PLAN_DESTACADO: AdminPlan = {
+  id: '2', nombre: 'Team',
+  precio_mensual: 199, descuento_pct: 10, precio_anual: 179, ahorro_anual: 240,
+  vinetas: ['3 agentes activos'], vinetas_tachadas: [],
+  destacado: true, trial_texto: '14 días de prueba gratis', es_custom: false, orden: 1,
+  created_at: '2026-07-31T10:00:00.000Z', updated_at: '2026-07-31T10:00:00.000Z',
+};
+
+afterEach(() => vi.restoreAllMocks());
+
 describe('rgba() de marca derivados del token (feature 25)', () => {
   it('cada alpha(token, x) da exactamente el mismo color que el literal que sustituye', () => {
     for (const key of Object.keys(BEFORE) as (keyof typeof BEFORE)[]) {
@@ -93,12 +105,23 @@ describe('rgba() de marca derivados del token (feature 25)', () => {
     );
   });
 
-  it('Pricing emite la sombra del plan destacado y el borde del distintivo de prueba', () => {
+  // Desde la feature 35, `Pricing` toma sus planes de `GET /api/precios` y no
+  // renderiza nada sin datos: hay que servirle una fila destacada y con prueba
+  // gratis para que emita los dos colores que este test vigila.
+  it('Pricing emite la sombra del plan destacado y el borde del distintivo de prueba', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ rows: [PLAN_DESTACADO] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
     render(
       <ThemeProvider theme={theme}>
         <Pricing isAnnual={false} onToggle={() => {}} onOpenContact={() => {}} />
       </ThemeProvider>,
     );
+    await screen.findByRole('heading', { name: 'Team' });
 
     const css = emittedCss();
     expect(css).toContain(squash(`0 14px 40px ${AFTER.pricingFeatured}`));
