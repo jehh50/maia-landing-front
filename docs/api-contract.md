@@ -370,6 +370,43 @@ del handler), así que un `422` por `seccion` llega tras consumir el ancho de ba
 ⚠️ **El rol `editor` no puede escribir imágenes.** Las tres rutas de escritura
 exigen `requireRole('admin')` a secas, a diferencia del CRUD de artículos.
 
+### Qué hace la landing con estas imágenes (feature 36, 2026-07-31)
+
+`GET /api/images?seccion=` tiene desde la **feature 36** dos consumidores más, los
+dos públicos y por `listImages` + `normalizeApi(…, 'rows')`:
+
+| Componente | Sección | Cuántas pinta |
+|---|---|---|
+| `src/components/sections/Hero.tsx` | `hero` | **todas** las filas, como carrusel, en el orden del backend |
+| `src/components/sections/CTAFinal.tsx` | `cta_final` | **la primera** fila: la sección tiene un solo hueco de imagen |
+
+Reglas que impone el contrato a esas dos secciones:
+
+- El `src` **se construye** con `imageRawUrl(id)`; el JSON no trae ningún campo
+  `url`. El `alt` sale del campo `alt`, y `alt: null` se pinta como `alt=""`
+  (imagen decorativa).
+- El orden es el del backend (`orden ASC, id ASC`): no se reordena ni se recorta.
+- El filtro por sección lo resuelve el servidor (`?seccion=`), nunca un `filter()`
+  sobre el listado completo.
+
+**Fallback, coherente con la feature 35 pero no idéntico.** Si la API responde
+`rows: []`, falla o no llega, **no se pinta ninguna imagen de la API**; pero, a
+diferencia de precios, **las secciones no desaparecen**: el Hero es el encabezado
+de la landing. Lo que se adapta es solo el hueco de la imagen, que cae a **un
+único estático** de `public/` (`/hero.png` y `/maia.png`). Mientras la petición
+está en vuelo el hueco existe ya con su proporción final y **sin ninguna `<img>`**,
+así que no hay salto de layout ni icono de imagen partida, y el respaldo nunca se
+pinta para ser sustituido después por la imagen de la API.
+
+⚠️ **Coste de servir el binario desde Postgres.** Medido contra el servidor local
+el 2026-07-31 con datos reales: la respuesta de `/api/images/:id/raw` **no trae
+`Cache-Control`, ni `ETag`, ni `Last-Modified`**, así que el navegador no puede
+revalidar y **cada carga de la landing vuelve a leer el `BYTEA`** (hoy 4 imágenes,
+≈556 KB por carga). El coste por petición es bajo (2-9 ms en local; 50 peticiones
+del binario de 311 KB con 10 en paralelo tardaron 0,41 s en total), así que no se
+ha introducido ninguna caché en el cliente: **añadir cabeceras de caché es trabajo
+del backend y feature propia**. Detalle y números en `progress/impl_36.md`.
+
 ## 4 quater. Precios (`/api/precios` + `/api/admin/precios`) — **vigente**
 
 Consumidos desde la **feature 34** (panel) y, el público `GET /api/precios`,
@@ -760,10 +797,13 @@ plan a convenir tiene que **omitir** las cifras en vez de mandarlas nulas
 
 Siguen vigentes dos datos de contexto que no son contrato:
 
-- **Las tablas están creadas pero VACÍAS y no hay seed.** `GET /api/precios` y
-  `GET /api/images` responden `200 { "rows": [] }`; los datos se cargan desde el
-  panel de administración. Conectar la landing sin cargarlos antes dejaría la
-  sección de precios y el carrusel del Hero **en blanco** (features 35 y 36).
+- **Las tablas se crearon vacías y no hay seed**; los datos se cargan desde el
+  panel de administración. `GET /api/precios` sigue respondiendo
+  `200 { "rows": [] }`, así que hoy la sección de precios no se pinta (§4 quater).
+  **`GET /api/images` ya no está vacío**: verificado contra el servidor local el
+  2026-07-31, tiene 3 filas en `hero` y 1 en `cta_final`. Aun así, ninguna de las
+  dos secciones de la feature 36 se queda en blanco sin datos: caen a un estático
+  de `public/` (ver §4 ter).
 - El servidor local es el **:3002** (no el 3001 que dice la doc del backend), y el
   rol `editor` ya puede eliminar publicaciones (la relajación de permisos que
   §10.3 daba por pendiente).
