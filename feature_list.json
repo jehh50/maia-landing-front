@@ -370,7 +370,7 @@
     {
       "id": 34,
       "name": "Cablear la vista de precios a /api/precios y /api/admin/precios",
-      "status": "pending",
+      "status": "done",
       "priority": "alta",
       "description": "Sustituye el mock de src/admin/prices/mockPrices.ts por helpers reales. Contrato verificado en docs/api-contract.md §10.4. Tiene una asimetria comprobada contra el servidor vivo: NO existe GET /api/admin/precios, responde 404 y no 401.",
       "acceptance": [
@@ -401,10 +401,11 @@
       "name": "La seccion de precios de la landing consume /api/precios",
       "status": "pending",
       "priority": "media",
-      "description": "Sustituye el array plans hard-coded de src/components/sections/Pricing.tsx:11-37 por el endpoint publico GET /api/precios. ATENCION: esta es la ruta critica del negocio, y las tablas del backend estan VACIAS mientras no se carguen datos por el panel. Una landing de captacion no puede quedarse sin precios porque la API este vacia, falle o el servicio de Render este dormido.",
+      "description": "Sustituye el array plans hard-coded de src/components/sections/Pricing.tsx:11-37 por el endpoint publico GET /api/precios. ATENCION: esta es la ruta critica del negocio, y las tablas del backend estan VACIAS mientras no se carguen datos por el panel. Una landing de captacion no puede quedarse sin precios porque la API este vacia, falle o el servicio de Render este dormido. FALLBACK DECIDIDO: ocultar la seccion cuando no hay datos (no se conservan los planes hard-codeados). Consecuencia asumida por el humano: con las tablas vacias, hoy la seccion no se pintaria hasta cargar planes por el panel.",
       "acceptance": [
         "Pricing.tsx consume GET /api/precios via un helper de src/lib/api.ts con normalizeApi. Cero fetch en el componente",
-        "DECISION EXPLICITA Y DOCUMENTADA del fallback cuando la API devuelve rows vacio, falla o tarda: la seccion NO puede quedarse en blanco. Se decide entre mantener los planes actuales como valor por defecto o mostrar un estado alternativo, y se justifica en el informe",
+        "FALLBACK DECIDIDO POR EL HUMANO (2026-07-31): si la API devuelve rows vacio, falla o no responde, la seccion de precios NO se renderiza. NO se mantienen los planes hard-codeados como respaldo: el criterio es no mostrar nunca precios obsoletos como si fueran vigentes. El array plans actual se ELIMINA, no se conserva como valor por defecto",
+        "El estado de carga no debe provocar salto de layout ni un parpadeo en el que la seccion aparezca y desaparezca",
         "El mapeo respeta el contrato: nombre, precio_mensual, precio_anual (mensual facturando anual, no el total del ano), ahorro_anual, vinetas, vinetas_tachadas, destacado, trial_texto",
         "Los planes con es_custom no pintan cifras: nada de $0 ni de 'Ahorras $0/ano'",
         "El toggle mensual/anual sigue funcionando con los datos de la API, y el descuento que se muestra sale de descuento_pct y no del Chip 'Ahorra 10%' hard-coded",
@@ -426,10 +427,10 @@
       "name": "El Hero y el CTA final consumen las imagenes de la API",
       "status": "pending",
       "priority": "media",
-      "description": "Sustituye los estaticos de public/ por GET /api/images?seccion=. Hoy Hero.tsx:10-12 usa hero.png, hero-2.png y hero-3.png para el carrusel, y CTAFinal.tsx:42 usa maia.png. Mismo aviso que la feature 35: las tablas estan vacias hasta que se carguen imagenes por el panel, y el carrusel del Hero es lo primero que ve un visitante.",
+      "description": "Sustituye los estaticos de public/ por GET /api/images?seccion=. Hoy Hero.tsx:10-12 usa hero.png, hero-2.png y hero-3.png para el carrusel, y CTAFinal.tsx:42 usa maia.png. Mismo aviso que la feature 35: las tablas estan vacias hasta que se carguen imagenes por el panel, y el carrusel del Hero es lo primero que ve un visitante. FALLBACK DECIDIDO: coherente con la 35, no se pintan imagenes de la API si no las hay. El tratamiento visual concreto del Hero vacio se justifica en el informe.",
       "acceptance": [
         "Hero consume seccion 'hero' y CTAFinal consume seccion 'cta_final', via helper de src/lib/api.ts. Cero fetch en los componentes",
-        "DECISION EXPLICITA Y DOCUMENTADA del fallback: si la API devuelve vacio o falla, se siguen usando los estaticos de public/. El Hero no puede quedarse sin imagen",
+        "FALLBACK DECIDIDO POR EL HUMANO (2026-07-31): coherente con la feature 35, si la API no devuelve imagenes no se pintan imagenes de la API. OJO: el Hero es lo primero que ve un visitante y no puede quedar como un hueco roto; hay que decidir y justificar en el informe si se degrada a una sola imagen estatica de public/ o si el carrusel se oculta entero, y cuidar que no haya salto de layout",
         "El src de cada img es ${API_BASE}/api/images/${id}/raw y el alt sale del campo alt de la API",
         "Se respeta el orden que da el backend (orden ASC, id ASC)",
         "Ojo al rendimiento: ese endpoint sirve el binario desde Postgres sin Cache-Control ni ETag, asi que cada carga es un hit a la base. Si se detecta un coste inaceptable, documentarlo en vez de inventar una cache",

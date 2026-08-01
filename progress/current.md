@@ -43,97 +43,93 @@
 
 ## Pendiente para la siguiente sesión
 
-> **La siguiente es la feature 34 (cablear precios).** Lee los dos primeros
-> puntos antes de tomarla: los dos cambian lo que el `feature_list.json` da por
-> supuesto.
+> **El cableado del admin está COMPLETO.** Las features 32 (usuarios), 33
+> (imágenes) y 34 (precios) están cerradas como `done` y **los tres CRUD consumen
+> ya la API real**. Lo único que queda del backlog son las **dos features de la
+> landing, la 35 y la 36** — y ninguna de las dos se puede tomar sin leer antes el
+> punto de la decisión de fallback, porque **está a la espera de un humano**.
 
-- **Features 32 y 33 cerradas como `done`**, ambas **APROBADAS**
-  (`progress/review_32.md` y `progress/review_33.md`), commiteadas en
-  `feat/admin-cruds` (`ba232e7` y `af2613e`). Los revisores **no se fiaron de los
-  informes**: en la 32 se contrastó el contrato contra el backend real y se
-  verificaron **6 mutaciones**; en la 33, **13 mutaciones**, todas en rojo y
-  revertidas. Resúmenes completos al final de `progress/history.md`.
-- **Feature 34 (cablear precios) es la siguiente**, y arrastra dos avisos:
-  - **NO existe `GET /api/admin/precios`.** Verificado contra el servidor:
-    responde **404, no 401**, o sea que no es un problema de sesión. El listado de
-    planes del panel sale del endpoint **público** `GET /api/precios`. Es la misma
-    asimetría que ya resolvió imágenes en la 33 (`publicJson` para leer,
-    `apiJson` para escribir): **hay molde que copiar**. La descripción de la
-    feature 30 en `feature_list.json` sigue diciendo lo contrario: es registro
-    histórico, no contrato.
-  - **`src/admin/prices/mockPrices.ts:37`** todavía dice que «`normalizeApi`
-    descarta `field`». **Ya es falso** desde la feature 31. Se corrige —o
-    desaparece con el archivo— **en la propia feature 34**, que es quien elimina
-    o reduce ese mock; no se arregló antes porque C10 prohíbe tocar deuda ajena.
-    La referencia equivalente de `docs/api-contract.md` ya está corregida.
-- **Discrepancia viva para la 34** (`docs/api-contract.md` §10.4): `API_READY.md`
-  dice que un plan Custom trae `precio_mensual` en `null`, pero el backend lo pasa
-  por `toNumber()` y devuelve **`0`**. **La regla segura es detectar `es_custom`,
-  nunca el nulo.**
-- **Las features 35 y 36 (migrar la landing) llevan como `acceptance` una decisión
-  explícita de fallback.** Las **tablas del backend están vacías y sin seed**, y la
-  landing **no puede quedarse sin precios ni sin carrusel**: migrar `Pricing.tsx`,
-  `Hero.tsx` y `CTAFinal.tsx` a pelo dejaría esas secciones **en blanco**. O se
-  siembran datos —o se cargan desde el propio panel, que para eso están las
-  32-34— o la feature define un fallback explícito. No es un detalle de
-  implementación: es la condición para no romper producción.
-- **Observaciones no bloqueantes heredadas de las dos reviews, sin arreglar:**
-  - **`getAdminUser` quedó sin consumidor ni test** (feature 32): lo pedía el
+- **Feature 34 cerrada como `done`, APROBADA** (`progress/review_34.md`),
+  commiteada en `feat/admin-cruds` (`027d510`). El revisor **no se fió del
+  informe**: reejecutó el bloque completo, **reprodujo 7 mutaciones** (todas en
+  rojo y revertidas, incluida la **M13**, cuya corrección confirmó como real y no
+  a medias), contrastó contra la fuente del backend el **404** de
+  `GET /api/admin/precios` y el **422** de `precio_mensual: null`, y midió con
+  `tsc` el alcance real del `Omit`. Resumen completo al final de
+  `progress/history.md`.
+- **Aviso de la review de la 34, importante para la feature 35:** **el `Omit` de
+  los tipos de escritura bloquea el literal, pero NO el *spread*.** Verificado con
+  `tsc`: `createAdminPlan({ ...unAdminPlan })` y `updateAdminPlan(id, plan)`
+  **compilan** y colarían `precio_anual` / `ahorro_anual` en el body, porque el
+  excess property check no aplica ni al spread ni a las variables. Hoy no ocurre
+  —el código construye un object literal tipado— pero **quien construya un payload
+  esparciendo un objeto puede colar los campos derivados sin que el compilador se
+  lo impida**. Si hace falta blindarlo, el patrón es declarar las claves prohibidas
+  en `never` (`{ precio_anual?: never; ahorro_anual?: never }`).
+- **Features 35 y 36: hay una decisión de producto pendiente, y es de un humano.**
+  Migran `Pricing.tsx` (35) y `Hero.tsx` + `CTAFinal.tsx` (36) a consumir
+  `/api/precios` y `/api/images`. Las dos llevan como `acceptance` una **decisión
+  explícita de fallback** porque **las tablas del backend están vacías y sin
+  seed**: cablearlas sin más dejaría **la sección de precios y el carrusel del
+  Hero en blanco para cualquier visitante**. No es un detalle de implementación,
+  es la condición para no romper producción. Las salidas posibles son sembrar
+  datos, cargarlos desde el propio panel —que para eso están las 32-34— o definir
+  un fallback explícito en el código. **La decisión la toma el humano, no el
+  implementador**: está planteada y a la espera.
+- **Observaciones no bloqueantes heredadas y sin arreglar:**
+  - **`getAdminUser` sigue sin consumidor ni test** (feature 32): lo pedía su
     acceptance y respeta el patrón de `getAdminArticle`, pero no lo llama nadie.
-    Si la 34 copia el molde, serán tres helpers de detalle sin consumidor: decide
-    si exigirle un test directo en `src/lib/__tests__/api.test.ts` o no pedir el
-    helper hasta que haya pantalla.
+    `getAdminPlan` tampoco tiene consumidor en la UI, pero **sí tiene test
+    directo** desde la 34 (URL, método y `credentials` congelados), así que el
+    hueco vivo es solo el de `getAdminUser`.
   - **El error del listado de usuarios no tiene `role="alert"`**
     (`UsersList.tsx:118`), así que un lector de pantalla no se entera del `409`
-    del último admin. La 33 sí lo arregló **en su propio archivo**;
-    `UsersList.tsx` y `LeadsList.tsx` siguen con el patrón viejo.
-  - **Ningún test distingue la tabla `FIELD_BY_BACKEND` de un cast crudo**
-    (feature 33): el control negativo N1 del revisor —sustituirla por
-    `res.field as FormField`— pasa los 23 tests en verde. Un caso con un `field`
-    desconocido (p. ej. `section`) que deba caer al `Alert role="status"` cerraría
-    el círculo. **Aplícalo también a la 34.**
-- **El flake de la suite bajo carga de CPU es deuda real y sigue abierta.** No es
-  solo `AppRoutes.test.tsx`: alcanza a **cualquier test pesado de MUI +
-  `userEvent`** (confirmado también en `ContactModal` y `PricesList`), con
-  `testTimeout` de 15 s. Regla práctica mientras no se arregle: **nunca correr dos
-  suites a la vez**, y si sale un rojo, **repetirlo aislado antes de reportarlo**.
-  Es candidato a feature propia, pero **toca configuración de tests
-  (infraestructura)**, así que **requiere que lo pida un humano**.
-- **Drift documental, tercer cierre consecutivo y ya mayor** (ninguna review lo
-  cuenta como fallo porque C6 solo exige `api-contract.md`): `docs/architecture.md:9`
-  sigue diciendo que usuarios e imágenes están «en maquetación con datos mock» y
-  su §5 no lista `/api/admin/users`, `/api/images` ni `/api/admin/images`;
-  `docs/verification.md` §1-§2 y `docs/architecture.md` §8 siguen anunciando
-  `15 archivos / 86 tests` cuando el real es **18 / 144**; y
-  `docs/api-contract.md` §1 anuncia «los tres helpers» y afirma que «todas las
-  peticiones con body van con `Content-Type: application/json`», que con
-  `apiUpload` (cuarto transporte) ya no es universal.
+    del último admin. Las features 33 y 34 lo arreglaron **en sus propios
+    archivos**; `UsersList.tsx` y `LeadsList.tsx` siguen con el patrón viejo.
+  - **El flake de la suite bajo carga de CPU sigue abierto.** Alcanza a cualquier
+    test pesado de MUI + `userEvent` (`AppRoutes`, `ContactModal`, `PricesList`),
+    con `testTimeout` de 15 s. Regla práctica: **nunca correr dos suites a la vez**
+    y, si sale un rojo, **repetirlo aislado antes de reportarlo**. Es **deuda de
+    infraestructura** (toca configuración de tests), así que **requiere que lo pida
+    un humano**; no se manifestó ni en la review de la 34 ni en este cierre.
+  - **Ningún test de `ImagesGrid`/`ImageUploadDialog` distingue la tabla
+    `FIELD_BY_BACKEND` de un cast crudo** (observación 2 de `review_33.md`). La 34
+    cerró el círculo **en su pantalla** con el caso del `422 { field: 'es_custom' }`;
+    en imágenes sigue abierto.
+  - **Drift documental, cuarto cierre consecutivo, ya candidato a feature propia**
+    (ninguna review lo cuenta como fallo porque C6 solo exige `api-contract.md`):
+    `docs/verification.md` §1-§2 y `docs/architecture.md` §8 siguen anunciando
+    `15 archivos / 86 tests` cuando el real es **18 / 159**;
+    `docs/architecture.md` §5 no lista `/api/precios`, `/api/admin/precios`,
+    `/api/admin/users`, `/api/images` ni `/api/admin/images`, y su §9 (y la
+    línea 9) siguen diciendo que usuarios, imágenes y precios están «en maquetación
+    con datos mock»; `docs/api-contract.md` §1 anuncia «los tres helpers» cuando
+    con `apiUpload` hay **cuatro transportes**, y su §4 ter remite a §10.4, que hoy
+    es solo un puntero a §4 quater.
 - El resto de pendientes vivos (copy obsoleto de `AdminHome.tsx`, arnés de
   suspensión H2, `tsconfig.tsbuildinfo` trackeado pese a estar en `.gitignore`,
   preexistentes H1-H3 de la feature 24 y el CTA de precios, lagunas de cobertura
-  aceptadas de la 29, `ImagePatchInput` sin derivar de `AdminImage`, `loading`
-  como booleano en vez de máquina de estados en las tres pantallas, y las
-  observaciones de `review_30.md` §9 y `review_31.md` §9) quedan registrados al
-  final de `progress/history.md`, en las entradas de las features 27-33.
+  aceptadas de la 29, `ImagePatchInput` sin derivar de `AdminImage`, la asimetría
+  cosmética del diálogo de un plan Custom, `loading` como booleano en vez de
+  máquina de estados en las cuatro pantallas, y las observaciones de
+  `review_30.md` §9 y `review_31.md` §9) quedan registrados al final de
+  `progress/history.md`, en las entradas de las features 27-34.
 
 ---
 
 ## Último baseline verde conocido
 
-`2026-07-31` (features 32 y 33 cerradas, `APROBADO` en `progress/review_32.md` y
-`progress/review_33.md`) — `npm test` **18 archivos / 144 tests** · exit 0 ·
-`npm run typecheck` exit 0 · `npm run build` exit 0 (aviso esperado de chunk
->500 kB).
+`2026-07-31` (feature 34 cerrada, `APROBADO` en `progress/review_34.md`) —
+`npm test` **18 archivos / 159 tests** · exit 0 · `npm run typecheck` exit 0 ·
+`npm run build` exit 0 (aviso esperado de chunk >500 kB).
 
-> Sobre esa cifra: el salto `18 / 125` → `18 / 133` → **`18 / 144`** es
-> íntegramente de las features 32 (**+8 netos**: 20 casos nuevos − 12 de la
-> maqueta de usuarios) y 33 (**+11 netos**: 23 casos nuevos − 12 de la maqueta de
-> imágenes). **Ningún archivo de test nuevo** —los dos existentes se reescribieron,
-> por eso el conteo de archivos no se mueve— y **ningún test previo roto**.
-> Medido de forma independiente por cada implementer, por cada revisor y en este
-> cierre.
+> Sobre esa cifra: el salto `18 / 144` → **`18 / 159`** es íntegramente de la
+> feature 34 (**+15 netos**: 24 casos nuevos − 9 de la maqueta de precios).
+> **Ningún archivo de test nuevo** —`PricesList.test.tsx` se reescribió, por eso el
+> conteo de archivos no se mueve— y **ningún test previo roto**. Medido tres veces:
+> por el implementer, por el revisor y en este cierre.
 >
-> A diferencia del cierre de la 31, **el árbol ya no tiene features en vuelo**:
-> las dos están commiteadas (`ba232e7` y `af2613e`) y `git status` solo muestra
-> `tsconfig.tsbuildinfo`, artefacto trackeado que toca cualquier `typecheck`
-> (deuda preexistente, ya registrada).
+> Las tres features del cableado del admin están commiteadas (`ba232e7`, `af2613e`
+> y `027d510`) y **el árbol no tiene features en vuelo**: `git status` solo muestra
+> `tsconfig.tsbuildinfo`, artefacto trackeado que toca cualquier `typecheck` (deuda
+> preexistente, ya registrada).

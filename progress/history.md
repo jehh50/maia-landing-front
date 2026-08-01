@@ -2016,3 +2016,149 @@ tests previos rotos**. Medido tres veces: implementer, revisor y este cierre.
   `/api/images` ni `/api/admin/images`, y `docs/verification.md` §1-§2 más
   `docs/architecture.md` §8 siguen anunciando `15 archivos / 86 tests` cuando el
   real es **18 / 144**.
+
+---
+
+## 2026-07-31 — Feature 34: Cablear la vista de precios a `/api/precios` y `/api/admin/precios`
+
+**Estado final:** done — **APROBADO** en `progress/review_34.md` (los **9
+`acceptance`** con archivo y línea en su §2, los **11 checkpoints** C1-C11 en
+verde, sin rechazo previo). Informe del implementer en `progress/impl_34.md`.
+**Rama / commit:** `feat/admin-cruds` · `027d510` · **7 archivos**:
+`src/lib/api.ts`, `src/admin/prices/PricesList.tsx`,
+`src/admin/prices/PlanEditDialog.tsx`, `src/admin/prices/mockPrices.ts`
+(**eliminado**), `src/admin/__tests__/PricesList.test.tsx`,
+`docs/api-contract.md` y el propio informe.
+
+**Con esta feature queda CERRADO el cableado del admin.** Los tres CRUD
+—usuarios (32), imágenes (33) y precios (34)— consumen ya la API real. Lo que
+queda abierto del backlog son las dos features de la landing, 35 y 36.
+
+**Qué se hizo:**
+
+- **`src/lib/api.ts`** (diff **estrictamente aditivo**: `142 insertions(+), 0
+  deletions(-)`, un único hunk al final del archivo, verificado por el revisor con
+  `git diff --numstat`; `apiJson`, `publicJson`, `postLead`, `normalizeApi`,
+  `apiUpload` y los helpers de leads, artículos, usuarios e imágenes quedan
+  intactos): `listPlanes`, `getAdminPlan`, `createAdminPlan`, `updateAdminPlan`,
+  `deleteAdminPlan`, los tipos (`AdminPlan`, `PlanesListResponse`, `PlanInput`,
+  `PlanPatchInput`), la aritmética de los derivados (`calcularPrecioAnual`,
+  `calcularAhorroAnual`, `derivarPrecios`), `formatMoneda` y los límites
+  `PLAN_NOMBRE_MAX` / `PLAN_TRIAL_MAX`. `parseOrden` y `ORDEN_ERROR` se
+  **reutilizan** de la 33: el backend usa literalmente el mismo mensaje
+  (`preciosRouter.js:134`).
+- **`PricesList.tsx` / `PlanEditDialog.tsx`:** cableados vía `normalizeApi`, con
+  alta, edición y borrado con confirmación, tabla `FIELD_BY_BACKEND` para los
+  `422` y error del listado con `role="alert"`.
+- **`mockPrices.ts` eliminado** (287 líneas): contrato, aritmética y formato a
+  `lib/api.ts`; parseo de textarea e importes a `PlanEditDialog.tsx`; datos
+  semilla a las fixtures del test. **El comentario obsoleto de su línea 37**
+  —decía que `normalizeApi` descarta `field`, falso desde la 31— desaparece con el
+  archivo y no se reintrodujo en ningún sitio.
+- **`PricesList.test.tsx` reescrito:** **24 casos** con `vi.spyOn(globalThis,
+  'fetch')` y `Response` reales, sin mockear `src/lib/api.ts`. El mock reproduce
+  tres comportamientos del servidor vivo: **404 en `GET /api/admin/precios`**,
+  `parseDecimal` rechazando `null` y el recálculo de los derivados (con
+  aritmética propia, para no validar `derivarPrecios` contra sí misma).
+- **`docs/api-contract.md`:** precios pasa de §10.4 (maquetación) al nuevo
+  **§4 quater** (5 rutas, 14 campos, aritmética, asimetría, límites y tabla de
+  errores); §10 y §10.4 quedan como registro histórico sin duplicar contrato.
+
+**Decisiones que importan:**
+
+- **La asimetría del listado, confirmada en la fuente del backend por el revisor:**
+  `preciosRouter.js:166` declara `GET /api/precios` **sin `adminGuard`**, y
+  `:178` es el **único** GET bajo `/api/admin/` (`/:id`). **No existe
+  `router.get('/api/admin/precios')`**, así que la ruta cae fuera del router y
+  responde **404, no 401**. Por eso `listPlanes` es el único helper con
+  `publicJson` (`credentials: 'omit'`) y los otros cuatro van con `apiJson`.
+  Misma forma que imágenes (§4 ter), pero aquí ni siquiera hay listado privado al
+  que caer.
+- **`precio_anual` y `ahorro_anual` no se pueden enviar:** `PlanInput` se deriva
+  con `Omit<AdminPlan, 'precio_anual' | 'ahorro_anual' | …>`, de modo que el
+  acceptance 3 pasa de disciplina a error de compilación. Además hay red de
+  runtime: `toEqual` estricto sobre los cuerpos de POST y PATCH más un test que
+  barre **todos** los cuerpos de escritura.
+- **Un plan a convenir OMITE las cifras, no las manda en `null`.** Hallazgo de
+  leer el backend y la trampa de la feature: `validarPlan` pasa el valor por
+  `parseDecimal` (`preciosRouter.js:47-54`), que devuelve `null` para `null` y
+  dispara un **422 seguro**. Omitir es lo correcto: `body.precio_mensual ===
+  undefined` salta la validación, el POST aplica el default `0` de `withDefaults`
+  y el PATCH conserva lo guardado; y con `es_custom: true`, `toPlan()` devuelve
+  los dos derivados en `null` igual.
+- **Custom se detecta por `es_custom`, nunca por el nulo.** `toPlan()` pasa
+  `precio_mensual` por `toNumber()`, que convierte `null` en **`0`**: fiarse del
+  nulo pintaría «$0» en el Enterprise. Las cuatro celdas preguntan primero por
+  `es_custom` y el diálogo **tampoco transcribe ese `0`** (el campo arranca
+  vacío).
+- **El `id` es string**, y el test lo prueba de verdad: la fixture de Enterprise
+  usa `id: '9007199254740993'`, un `BIGSERIAL` por encima de
+  `Number.MAX_SAFE_INTEGER`, y hay un caso que afirma que la URL **no** contiene
+  `…992`.
+- **`field` → input por tabla, con un test que la distingue de un cast.**
+  `FIELD_BY_BACKEND` lleva los seis campos que el backend rechaza *y* tienen input
+  con `helperText`. Fuera a propósito: `trial_texto` (el backend lo **trunca**, no
+  lo rechaza) y `destacado`/`es_custom` (son `Switch` sin `helperText`, así que un
+  cast crudo escribiría el error en un slot que nadie renderiza). **Esto cierra la
+  observación 2 de `review_33.md`**: allí el control negativo N1 pasaba en verde;
+  aquí la misma sustitución sale en **rojo** por el test del
+  `422 { field: 'es_custom' }`.
+- **Alta y borrado en la UI, y no es scope de más:** el backend tiene las tablas
+  **vacías y sin seed**, así que sin `POST` en el panel la pantalla no podría
+  mostrar nunca un plan y la feature 35 se quedaría sin datos que consumir. El
+  acceptance 2 nombra el `DELETE` y el 3 nombra el `POST`.
+- **`src/components/sections/Pricing.tsx` NO se tocó** (verificado por el revisor:
+  0 líneas de diff): la landing sigue con su array `plans` hard-coded, que es la
+  feature 35. Tampoco se arregló de paso deuda ajena (el `role="alert"` de
+  `UsersList`/`LeadsList`, ni la observación 2 de la 33 en `ImagesGrid`): el
+  patrón se aplicó **solo** a los archivos propios (C10).
+
+**Sobre la review:** el revisor **no se fió del informe**. Reejecutó el bloque
+completo, leyó la fuente del backend en solo lectura (`preciosRouter.js`,
+`precios.js`) para contrastar el 404 del listado, el 422 de `precio_mensual:
+null`, el `toNumber()` que convierte el nulo en `0` y la aritmética de los
+derivados; compiló una **sonda con `tsc --strict`** para medir el alcance real del
+`Omit`; y **reprodujo 7 mutaciones** (M1 → rojo 22, M4, M5 → rojo 3, M6 → rojo 2,
+M7, M8 y M13), una a una y revertidas desde copia antes de la siguiente. **La M13
+es la que más importaba**: el implementer la había encontrado en **verde** en su
+primera pasada —el test marcaba el switch con el campo de precio vacío, así que no
+distinguía «lo decide `es_custom`» de «lo decide que el input esté en blanco»— y
+reescribió el caso para teclear `349` **antes** de marcar «a convenir». El revisor
+confirmó que **la corrección es real y no está a medias**: quitar el `!esCustom`
+tumba el test con `expected false, received true`.
+
+**Verificación:** `npm test` **18 archivos / 159 tests** exit **0** ·
+`npm run typecheck` exit **0** · `npm run build` exit **0** (aviso esperado de
+chunk >500 kB). Baseline `18 / 144` → **`18 / 159`**: **+15 tests netos** (24
+casos nuevos − 9 de la maqueta), **0 archivos nuevos** (se reescribió el test, no
+se añadió), **0 tests previos rotos**. Medido tres veces: implementer, revisor y
+este cierre. **Ningún rojo** en `PricesList` pese a ser uno de los tres archivos
+señalados como flakes; se corrió **una sola suite a la vez** en las tres pasadas.
+
+**Pendiente que deja:**
+
+- **El `Omit` bloquea el literal, pero NO el spread.** Verificado con `tsc` por el
+  revisor: `createAdminPlan({ ...unAdminPlan })` y `updateAdminPlan(id, plan)`
+  **compilan** y colarían los derivados en el body, porque el excess property
+  check no aplica al spread ni a las variables. Hoy no pasa —el código construye
+  un object literal tipado (`PlanEditDialog.tsx:156-165`) y los tests 7/10/16 lo
+  cazarían en runtime—, pero **el informe afirma que «lo garantiza el compilador»
+  sin ese matiz**. Es **relevante para la feature 35**, que reutiliza `AdminPlan`
+  desde la landing; si hace falta blindarlo, el patrón es un tipo con las claves
+  prohibidas en `never` (`{ precio_anual?: never; ahorro_anual?: never }`).
+- **Asimetría cosmética al abrir un plan Custom** (`PlanEditDialog.tsx:103-104`):
+  «Precio mensual» arranca vacío y «Descuento anual» arranca en `'0'`. Los dos
+  quedan deshabilitados y el bloque de derivados dice «Sin cifras», así que no se
+  filtra ningún «$0» ni al usuario ni al body. Solo incoherencia visual.
+- **`getAdminPlan` sigue sin consumidor en la UI**, como `getAdminUser` desde la
+  32 — pero **aquí sí tiene test directo** (URL, método y `credentials`
+  congelados). El hueco vivo es el de `getAdminUser`.
+- **Referencia cruzada a un salto:** `docs/api-contract.md` §4 ter dice «misma
+  asimetría que precios (§10.4)» y §10.4 es ahora un puntero a §4 quater.
+- **Drift documental, cuarto cierre consecutivo** (ninguna review lo cuenta como
+  fallo porque C6 solo exige `api-contract.md`): `docs/verification.md` §1-§2 y
+  `docs/architecture.md` §8 siguen anunciando `15 archivos / 86 tests` cuando el
+  real es **18 / 159**; `docs/architecture.md` §5 no lista `/api/precios` ni
+  `/api/admin/precios` (ni los de usuarios/imágenes) y su §9 sigue diciendo que
+  precios está «en maquetación con datos mock». **Ya es candidato a feature propia
+  de documentación**, no a nota al pie.
