@@ -3,14 +3,32 @@ import { Box, Button, Container, Typography, Chip, Stack, IconButton } from '@mu
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import * as THREE from 'three';
+import { imageRawUrl, listImages, normalizeApi, type AdminImage } from '../../lib/api';
 
 interface HeroProps { onOpenContact: () => void }
 
-const HERO_SLIDES = [
-  { src: '/hero.png', alt: 'Plataforma MaIA: administra todos tus agentes de IA en un solo lugar' },
-  { src: '/hero-2.png', alt: 'Plataforma MaIA: conversaciones y conocimiento de tus agentes' },
-  { src: '/hero-3.png', alt: 'Plataforma MaIA: integraciones y automatizaciones sin código' },
-];
+/** Estado de carga explícito, como pide `docs/conventions.md` §5. */
+type Estado = 'loading' | 'ok' | 'error';
+
+/** Diapositiva ya resuelta: el carrusel no distingue de dónde salió la imagen. */
+interface Slide { key: string; src: string; alt: string }
+
+/**
+ * Respaldo del carrusel, decidido en la feature 36 (justificación en
+ * `progress/impl_36.md`).
+ *
+ * **No es un respaldo de datos de la API**: es el estado en el que queda el
+ * hueco de la imagen cuando la API no tiene nada que servir para la sección
+ * `hero`. Es **una sola** imagen estática y sin controles de carrusel; el
+ * carrusel de varias imágenes pasa a depender exclusivamente de lo que se
+ * publique desde el panel. El Hero es el encabezado de la landing y no puede
+ * quedar con un marco vacío, que es justo lo que prohíbe el acceptance 2.
+ */
+const HERO_RESPALDO: Slide = {
+  key: 'respaldo-estatico',
+  src: '/hero.png',
+  alt: 'Plataforma MaIA: administra todos tus agentes de IA en un solo lugar',
+};
 
 function useCounter(target: number, suffix = '', dec = 0, active = true) {
   const [val, setVal] = useState('0' + suffix);
@@ -32,6 +50,36 @@ function useCounter(target: number, suffix = '', dec = 0, active = true) {
   return val;
 }
 
+/**
+ * Encabezado de la landing. Desde la feature 36, las imágenes del carrusel salen
+ * del endpoint **público** `GET /api/images?seccion=hero`
+ * (`docs/api-contract.md` §4 ter) en vez de los estáticos de `public/`.
+ *
+ * Reglas del contrato que no son preferencias de esta pantalla:
+ *
+ * - **La URL del binario se construye**, no llega: el JSON no trae ningún campo
+ *   `url`, y `imageRawUrl(id)` es quien aplica `VITE_API_BASE`.
+ * - **El orden es del backend** (`orden ASC, id ASC`): no se reordena ni se
+ *   recorta en cliente.
+ * - **El filtro por sección lo hace el servidor** (`?seccion=hero`), no un
+ *   `filter()` sobre el listado completo.
+ *
+ * **Fallback (acceptance 2, decidido por el humano el 2026-07-31).** Coherente
+ * con la feature 35, si la API no devuelve imágenes **no se pinta ninguna imagen
+ * de la API**; pero, a diferencia de precios, la sección **nunca desaparece**:
+ * el titular, el copy, las métricas y el CTA son el encabezado de la landing.
+ * Lo que se adapta es solo el hueco de la imagen, y lo hace así:
+ *
+ * - **Mientras carga**, el marco del carrusel ya está montado con su
+ *   `aspectRatio` final y **sin ninguna `<img>`**: reserva el espacio (cero
+ *   salto de layout) y es imposible que salga el icono de imagen partida.
+ * - **Con imágenes de la API**, se pintan esas y solo esas.
+ * - **Con `rows: []`, error HTTP o fallo de red**, el mismo marco muestra
+ *   `HERO_RESPALDO`. Nunca se mezclan respaldo e imágenes de la API, y nunca se
+ *   pinta primero el respaldo para sustituirlo después: el marco pasa de vacío a
+ *   su contenido definitivo en **una sola** transición.
+ * - Los controles (flechas y puntos) solo existen con **dos o más** imágenes.
+ */
 export default function Hero({ onOpenContact }: HeroProps) {
   const statsRef = useRef<HTMLDivElement>(null);
   const vantaRef = useRef<HTMLDivElement>(null);
@@ -78,22 +126,50 @@ export default function Hero({ onOpenContact }: HeroProps) {
   const red = useCounter(68, '%', 0, active);
   const roi = useCounter(2.5, '×', 1, active);
 
+  const [estado, setEstado] = useState<Estado>('loading');
+  const [imagenes, setImagenes] = useState<AdminImage[]>([]);
   const [slide, setSlide] = useState(0);
   const [paused, setPaused] = useState(false);
-  const go = (n: number) => setSlide((n + HERO_SLIDES.length) % HERO_SLIDES.length);
 
   useEffect(() => {
-    if (paused) return;
-    const id = setInterval(() => setSlide(s => (s + 1) % HERO_SLIDES.length), 5000);
+    let vigente = true;
+    void (async () => {
+      // El mensaje de error no se usa: al visitante no se le enseña un aviso de
+      // API en el encabezado, se le enseña el respaldo.
+      const res = await normalizeApi(listImages({ seccion: 'hero' }), 'rows');
+      if (!vigente) return;
+      setImagenes(res.ok ? res.data.rows : []);
+      setEstado(res.ok ? 'ok' : 'error');
+    })();
+    return () => { vigente = false; };
+  }, []);
+
+  // Mientras carga, el marco va sin imágenes; luego, o las de la API o el
+  // respaldo. `alt: null` es una imagen decorativa: `alt=""` (conventions §6).
+  const slides: Slide[] =
+    estado === 'loading'
+      ? []
+      : imagenes.length > 0
+        ? imagenes.map(img => ({ key: img.id, src: imageRawUrl(img.id), alt: img.alt ?? '' }))
+        : [HERO_RESPALDO];
+
+  const total = slides.length;
+  // El índice se acota al número real de diapositivas: nunca apunta fuera.
+  const actual = total > 0 ? slide % total : 0;
+  const go = (n: number) => { if (total > 0) setSlide((n + total) % total); };
+
+  useEffect(() => {
+    if (paused || total <= 1) return;
+    const id = setInterval(() => setSlide(s => (s + 1) % total), 5000);
     return () => clearInterval(id);
-  }, [paused]);
+  }, [paused, total]);
 
   return (
     <Box component="section" id="hero" sx={{ position: 'relative', pt: { xs: 13, md: 16 }, pb: { xs: 7, md: 10 } }}>
       <Box ref={vantaRef} sx={{ position: 'absolute', inset: 0, zIndex: 0 }} />
       <Box sx={{
         position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none',
-        background: 'linear-gradient(180deg, transparent 40%, #FFFFFF 100%)',
+        background: 'linear-gradient(180deg, transparent 40%, var(--bg) 100%)',
       }} />
 
       <Container sx={{ position: 'relative', zIndex: 2 }}>
@@ -153,6 +229,8 @@ export default function Hero({ onOpenContact }: HeroProps) {
 
         <Box
           className="reveal"
+          role="group"
+          aria-label="Capturas de la plataforma MaIA"
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
           sx={{
@@ -162,77 +240,80 @@ export default function Hero({ onOpenContact }: HeroProps) {
             boxShadow: '0 12px 40px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04)',
             border: '1px solid var(--border)',
             aspectRatio: '1381 / 677',
-            background: '#FAFAF9',
+            bgcolor: 'surface.soft',
             lineHeight: 0,
             '&:hover .hero-arrow': { opacity: 1 },
           }}
         >
-          {HERO_SLIDES.map((s, i) => (
+          {slides.map((s, i) => (
             <Box
-              key={s.src}
+              key={s.key}
               component="img"
               src={s.src}
               alt={s.alt}
-              aria-hidden={i !== slide}
+              aria-hidden={i !== actual}
               sx={{
                 position: 'absolute', inset: 0,
                 width: '100%', height: '100%',
                 objectFit: 'contain', objectPosition: 'center top',
-                opacity: i === slide ? 1 : 0,
+                opacity: i === actual ? 1 : 0,
                 transition: 'opacity 0.6s ease',
                 pointerEvents: 'none',
               }}
             />
           ))}
 
-          {/* Flechas */}
-          <IconButton
-            className="hero-arrow"
-            aria-label="Imagen anterior"
-            onClick={() => go(slide - 1)}
-            sx={{
-              position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)',
-              bgcolor: 'rgba(255,255,255,0.85)', color: 'var(--text)',
-              opacity: { xs: 1, md: 0 }, transition: 'opacity 0.2s ease',
-              '&:hover': { bgcolor: '#fff' },
-            }}
-          >
-            <KeyboardArrowLeftIcon />
-          </IconButton>
-          <IconButton
-            className="hero-arrow"
-            aria-label="Imagen siguiente"
-            onClick={() => go(slide + 1)}
-            sx={{
-              position: 'absolute', top: '50%', right: 8, transform: 'translateY(-50%)',
-              bgcolor: 'rgba(255,255,255,0.85)', color: 'var(--text)',
-              opacity: { xs: 1, md: 0 }, transition: 'opacity 0.2s ease',
-              '&:hover': { bgcolor: '#fff' },
-            }}
-          >
-            <KeyboardArrowRightIcon />
-          </IconButton>
-
-          {/* Dots */}
-          <Box sx={{
-            position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', gap: 1, zIndex: 2,
-          }}>
-            {HERO_SLIDES.map((s, i) => (
-              <Box
-                key={s.src}
-                component="button"
-                aria-label={`Ir a la imagen ${i + 1}`}
-                onClick={() => go(i)}
+          {/* Flechas y puntos: solo tienen sentido con dos o más imágenes. */}
+          {total > 1 && (
+            <>
+              <IconButton
+                className="hero-arrow"
+                aria-label="Imagen anterior"
+                onClick={() => go(actual - 1)}
                 sx={{
-                  p: 0, border: 'none', cursor: 'pointer',
-                  width: i === slide ? 22 : 8, height: 8, borderRadius: 100,
-                  background: i === slide ? 'var(--orange)' : 'rgba(0,0,0,0.25)',
-                  transition: 'all 0.25s ease',
+                  position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)',
+                  bgcolor: 'rgba(255,255,255,0.85)', color: 'var(--text)',
+                  opacity: { xs: 1, md: 0 }, transition: 'opacity 0.2s ease',
+                  '&:hover': { bgcolor: 'common.white' },
                 }}
-              />
-            ))}
-          </Box>
+              >
+                <KeyboardArrowLeftIcon />
+              </IconButton>
+              <IconButton
+                className="hero-arrow"
+                aria-label="Imagen siguiente"
+                onClick={() => go(actual + 1)}
+                sx={{
+                  position: 'absolute', top: '50%', right: 8, transform: 'translateY(-50%)',
+                  bgcolor: 'rgba(255,255,255,0.85)', color: 'var(--text)',
+                  opacity: { xs: 1, md: 0 }, transition: 'opacity 0.2s ease',
+                  '&:hover': { bgcolor: 'common.white' },
+                }}
+              >
+                <KeyboardArrowRightIcon />
+              </IconButton>
+
+              <Box sx={{
+                position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
+                display: 'flex', gap: 1, zIndex: 2,
+              }}>
+                {slides.map((s, i) => (
+                  <Box
+                    key={s.key}
+                    component="button"
+                    aria-label={`Ir a la imagen ${i + 1}`}
+                    onClick={() => go(i)}
+                    sx={{
+                      p: 0, border: 'none', cursor: 'pointer',
+                      width: i === actual ? 22 : 8, height: 8, borderRadius: 100,
+                      background: i === actual ? 'var(--orange)' : 'rgba(0,0,0,0.25)',
+                      transition: 'all 0.25s ease',
+                    }}
+                  />
+                ))}
+              </Box>
+            </>
+          )}
         </Box>
       </Container>
     </Box>

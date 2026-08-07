@@ -6,6 +6,7 @@ import InsightsIcon from '@mui/icons-material/Insights';
 import GroupsIcon from '@mui/icons-material/Groups';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import { SvgIconComponent } from '@mui/icons-material';
+import { tokens } from '../../theme/tokens';
 
 interface Feature {
   Icon: SvgIconComponent;
@@ -19,37 +20,37 @@ const features: Feature[] = [
     Icon: PsychologyIcon,
     t: 'Memoria persistente',
     d: 'Tus agentes recuerdan a cada cliente, su historia y preferencias en cada interacción.',
-    accent: '#E8440A',
+    accent: tokens.brand.orange,
   },
   {
     Icon: HubIcon,
     t: 'Integraciones nativas',
     d: '+100 integraciones listas: Salesforce, HubSpot, Slack, Google, Shopify, WooCommerce y más.',
-    accent: '#7C3AED',
+    accent: tokens.accent.violet,
   },
   {
     Icon: SecurityIcon,
     t: 'Privacidad por defecto',
     d: 'Tus datos nunca entrenan modelos públicos. Cifrado en tránsito y reposo, SOC 2 compliant.',
-    accent: '#0369A1',
+    accent: tokens.accent.blue,
   },
   {
     Icon: InsightsIcon,
     t: 'Métricas en vivo',
     d: 'Dashboards con KPIs de cada agente, conversación y resultado de negocio en tiempo real.',
-    accent: '#16A34A',
+    accent: tokens.brand.green,
   },
   {
     Icon: GroupsIcon,
     t: 'Deriva a humanos',
     d: 'Cuando algo se sale del guion, el agente escala a tu equipo con todo el contexto.',
-    accent: '#D97706',
+    accent: tokens.accent.amber,
   },
   {
     Icon: SupportAgentIcon,
     t: 'Autoservicio 24/7',
     d: 'Tus agentes resuelven consultas comunes, agendan reuniones y actualizan información sin intervención humana.',
-    accent: '#E8440A',
+    accent: tokens.brand.orange,
   },
 ];
 
@@ -71,7 +72,7 @@ export default function Features() {
                 p: 3.5,
                 height: '100%',
                 borderRadius: 3,
-                background: '#fff',
+                bgcolor: 'background.paper',
                 border: '1px solid var(--border)',
                 borderTop: '3px solid transparent',
                 transition: 'all 0.25s ease',

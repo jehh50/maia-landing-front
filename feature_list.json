@@ -1,0 +1,450 @@
+{
+  "project": "maia-landing-front",
+  "updated_at": "2026-07-31",
+  "notes": "Backlog vivo. Estados: pending | in_progress | done | blocked. Una feature a la vez, la de menor id entre las pending (ver AGENTS.md §4). Los ids 1-16 corresponden a la construcción original de la app (ya en produccion) y no se re-listan aqui; el backlog abierto arranca en 17.",
+  "features": [
+    {
+      "id": 17,
+      "name": "Ruta 404",
+      "status": "done",
+      "priority": "alta",
+      "description": "Hoy no existe una ruta comodin '*'. Cualquier path desconocido cae en el rewrite SPA de Vercel y renderiza una pantalla en blanco, sin navegacion ni salida.",
+      "acceptance": [
+        "Existe <Route path=\"*\"> en src/main.tsx que renderiza una pagina NotFound",
+        "La pagina usa Navbar y Footer y ofrece un enlace de vuelta a '/'",
+        "Test: MemoryRouter con initialEntries=['/ruta-que-no-existe'] muestra el contenido 404 y no una pantalla vacia",
+        "Las rutas existentes siguen resolviendo igual (ninguna cae en el comodin)"
+      ],
+      "files": [
+        "src/main.tsx",
+        "src/pages/NotFound.tsx",
+        "src/pages/__tests__/NotFound.test.tsx"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 18,
+      "name": "Eliminar el flag muerto 'enabled' de AdminLayout",
+      "status": "done",
+      "priority": "baja",
+      "description": "Los tres items de navegacion de src/admin/AdminLayout.tsx:6-8 tienen enabled: true, asi que la rama 'proximamente' de la linea 58 es codigo inalcanzable.",
+      "acceptance": [
+        "El campo 'enabled' y su rama else desaparecen de AdminLayout.tsx",
+        "La navegacion del admin sigue mostrando Inicio, Leads y Blog, con el mismo marcado activo",
+        "npm test, npm run typecheck y npm run build siguen en verde"
+      ],
+      "files": [
+        "src/admin/AdminLayout.tsx"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 19,
+      "name": "Actualizar README.md al estado real del proyecto",
+      "status": "done",
+      "priority": "media",
+      "description": "El README de la raiz describe el proyecto anterior al router: one-page sin rutas, puertos 5173/3001, api.ts con solo postLead. Induce a error a cualquier agente o humano que entre por ahi.",
+      "acceptance": [
+        "El README refleja rutas reales, puerto 5174, proxy a :3002 y los scripts reales de package.json",
+        "Apunta a AGENTS.md y docs/architecture.md como referencia vigente en vez de duplicar su contenido",
+        "No contradice ningun dato de docs/architecture.md"
+      ],
+      "files": [
+        "README.md"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 20,
+      "name": "Helper de normalizacion de respuestas de la API",
+      "status": "done",
+      "priority": "media",
+      "description": "Los helpers de src/lib/api.ts devuelven { ok, status, data } y cada consumidor discrimina a mano con \"'rows' in data\". El patron se repite en todo el admin y el blog. Un helper que normalice a { ok: true, data } | { ok: false, error } recortaria el ruido y unificaria el manejo de errores.",
+      "acceptance": [
+        "src/lib/api.ts expone el helper de normalizacion, con test propio de sus casos: 200 con body, 200 sin body, 4xx con error, 5xx sin body",
+        "Al menos dos consumidores reales migran al helper (p. ej. BlogIndex y LeadsList) y sus tests siguen verdes sin cambiar las aserciones sobre fetch.mock.calls",
+        "La forma publica de los helpers existentes no cambia para los consumidores no migrados: la migracion es incremental",
+        "docs/api-contract.md documenta la nueva forma normalizada"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/lib/__tests__/api.test.ts",
+        "docs/api-contract.md"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 21,
+      "name": "useReveal observa contenido montado despues del primer render",
+      "status": "done",
+      "priority": "baja",
+      "description": "src/hooks/useReveal.ts hace un unico querySelectorAll('.reveal') al montar. Cualquier nodo .reveal montado despues (listados asincronos, secciones condicionales) nunca recibe la clase .visible y queda invisible si el CSS lo oculta de partida.",
+      "acceptance": [
+        "Los nodos .reveal insertados tras el montaje quedan observados y reciben .visible al entrar en viewport",
+        "El observer se desconecta en el cleanup del efecto, sin fugas",
+        "Test que monta contenido .reveal de forma diferida y verifica que se observa"
+      ],
+      "files": [
+        "src/hooks/useReveal.ts",
+        "src/hooks/__tests__/useReveal.test.tsx"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 22,
+      "name": "Code splitting por ruta",
+      "status": "done",
+      "priority": "media",
+      "description": "El bundle es monolitico (~2.5 MB, aviso de chunk >500 kB en cada build). Un visitante de la landing descarga tambien todo el panel admin y @uiw/react-md-editor. El unico import() dinamico hoy es el efecto Vanta del Hero.",
+      "acceptance": [
+        "Las rutas /admin/* y las paginas del blog se cargan con React.lazy + Suspense y un fallback coherente con el tema",
+        "El chunk de entrada baja de forma medible respecto al baseline (~2.5 MB); anotar antes/despues en progress/current.md",
+        "No hay flash ni pantalla en blanco al navegar entre rutas",
+        "Los 34 tests existentes siguen verdes (ajustar los wrappers a Suspense si hace falta, no las aserciones)"
+      ],
+      "files": [
+        "src/main.tsx"
+      ],
+      "depends_on": [
+        17
+      ]
+    },
+    {
+      "id": 23,
+      "name": "Unificar los tokens de color duplicados",
+      "status": "done",
+      "priority": "baja",
+      "description": "Los mismos valores viven en el tema MUI (src/theme/theme.ts) y en las variables CSS (src/styles/globals.css). Cambiar un color obliga a tocar dos sitios y es facil que se desincronicen.",
+      "acceptance": [
+        "Existe una unica fuente de verdad de los valores y la otra capa los deriva de ella",
+        "Ningun color queda hardcodeado en componentes",
+        "El aspecto visual no cambia: revisar landing, blog y admin a 360 px y 1440 px y anotarlo en progress/current.md",
+        "Decision de arquitectura registrada en docs/architecture.md §6"
+      ],
+      "files": [
+        "src/theme/theme.ts",
+        "src/styles/globals.css",
+        "docs/architecture.md"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 24,
+      "name": "Verificacion visual del backlog 17-23 a 360 y 1440 px",
+      "status": "done",
+      "priority": "alta",
+      "description": "Las features 17, 22 y 23 cerraron con su acceptance visual sin verificar. Se dio por bloqueado por falta de navegador, pero es FALSO: hay firefox en /usr/bin/firefox y su modo --headless --screenshot renderiza el SPA correctamente (JS incluido). Receta validada: firefox --headless --screenshot=\"$PWD/out.png\" --window-size=ANCHO,ALTO URL — el destino debe ser ruta absoluta o no escribe el archivo.",
+      "acceptance": [
+        "404 (/ruta-que-no-existe) a 360 y 1440 px: bloque centrado, Navbar fija no tapa el titulo, Footer no se solapa con el CTA",
+        "Navegacion a /blog y a /admin/* sin flash ni pantalla en blanco, y sin parpadeo del sidebar del admin al moverse dentro del panel (feature 22)",
+        "Landing, blog y admin sin ningun cambio de color respecto a produccion (feature 23)",
+        "Resultado anotado en progress/current.md"
+      ],
+      "files": [],
+      "depends_on": []
+    },
+    {
+      "id": 25,
+      "name": "Llevar los rgba() de marca a tokens.ts",
+      "status": "done",
+      "priority": "media",
+      "description": "Detectado en la review de la feature 23 (N3). Quedan 8 literales rgba(232,68,10,x) y rgba(22,163,74,x) en Pain.tsx, Pricing.tsx y Solution.tsx que duplican el naranja y el verde de marca fuera de tokens.ts: cambiar brand.orange dejaria esas sombras con el color viejo. No son hex, asi que el acceptance 2 de la 23 no los cubria.",
+      "acceptance": [
+        "Los 8 literales usan alpha(tokens.brand.*, x), el patron ya probado en src/theme/theme.ts",
+        "Los valores computados no cambian: verificar rgba resultante uno por uno",
+        "grep -rnE 'rgba\\\\(232|rgba\\\\(22, ?163' src/ no devuelve nada"
+      ],
+      "files": [
+        "src/components/sections/Pain.tsx",
+        "src/components/sections/Pricing.tsx",
+        "src/components/sections/Solution.tsx"
+      ],
+      "depends_on": [
+        23
+      ]
+    },
+    {
+      "id": 26,
+      "name": "Limpiar residuos preexistentes de Pricing.tsx",
+      "status": "done",
+      "priority": "baja",
+      "description": "Dos hallazgos preexistentes de la review de la feature 23, dejados fuera de scope por C10. (N1) Bloque JSX comentado en Pricing.tsx:105-132 que arrastra el ultimo #fff del repo y viola conventions §7. (N4) Pricing.tsx:69 tiene background: 'primary.main' junto a bgcolor: 'primary.main'; sx no mapea la clave background a la paleta, asi que emite una declaracion invalida que el navegador descarta. El render lo salva el bgcolor de al lado.",
+      "acceptance": [
+        "El bloque JSX comentado desaparece y con el el ultimo #fff hardcodeado",
+        "La declaracion background: 'primary.main' invalida desaparece",
+        "El render no cambia: el bgcolor contiguo ya aportaba el color",
+        "grep -rnE '#[0-9a-fA-F]{3,8}' src/ solo devuelve las excepciones justificadas en progress/impl_23.md"
+      ],
+      "files": [
+        "src/components/sections/Pricing.tsx"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 27,
+      "name": "Andamiaje admin para usuarios, imagenes y precios",
+      "status": "done",
+      "priority": "alta",
+      "description": "Prepara el terreno compartido de las tres vistas nuevas para que las features 28-30 puedan trabajar en paralelo sin pisarse. Crea las rutas, las entradas de sidebar y un componente minimo por recurso; NO implementa las vistas. Es la unica feature del grupo que toca archivos compartidos (AppRoutes.tsx, AdminLayout.tsx y sus tests): las 28-30 solo tocan su propia carpeta.",
+      "acceptance": [
+        "src/AppRoutes.tsx registra las rutas /admin/users, /admin/images y /admin/prices con React.lazy y ruta literal en el import(), cada una envuelta en AdminPage, y el comodin * sigue siendo la ultima",
+        "AdminLayout.tsx anade Usuarios, Imagenes y Precios a NAV_ITEMS con end: false",
+        "src/admin/__tests__/AdminLayout.test.tsx se actualiza: el toEqual(['Inicio','Leads','Blog']) de la linea 37-40 congela la lista vieja y falla si no se toca",
+        "Existe un componente minimo por recurso (UsersList, ImagesGrid, PricesList) con su titulo, que renderiza sin errores y sirve de punto de anclaje a las features 28-30",
+        "Un test cubre que las tres rutas nuevas montan bajo la guardia sin desmontar el sidebar, siguiendo el patron de src/__tests__/AppRoutes.test.tsx:113-142",
+        "No se toca src/lib/api.ts: ninguna vista consume el backend todavia"
+      ],
+      "files": [
+        "src/AppRoutes.tsx",
+        "src/admin/AdminLayout.tsx",
+        "src/admin/users/UsersList.tsx",
+        "src/admin/images/ImagesGrid.tsx",
+        "src/admin/prices/PricesList.tsx",
+        "src/admin/__tests__/AdminLayout.test.tsx",
+        "src/__tests__/AppRoutes.test.tsx"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 28,
+      "name": "Vista admin de usuarios (maqueta con datos mock)",
+      "status": "done",
+      "priority": "alta",
+      "description": "Maqueta la administracion de usuarios: listado con busqueda, alta, edicion y borrado con confirmacion. Se alimenta de datos mock locales, NO del backend: el backend no tiene ningun endpoint de usuarios (cero rutas, solo la tabla y dos scripts CLI; ver progress/explore_backend_cruds.md §3). Los campos si son fiables porque la tabla existe: id, email, name, role ('admin'|'editor'), created_at. password_hash NUNCA se muestra ni se modela en el front. ACTUALIZACION 2026-07-29: el backend ya escribio src/usersRouter.js (sin commitear; avisara con un archivo API_READY.md). Contrato provisional en docs/api-contract.md §10.3: listado {rows} sin paginacion, detalle {user}, columnas id/email/name/role/created_at.",
+      "acceptance": [
+        "Listado con las columnas email, nombre, rol y fecha de alta, con busqueda por texto y los estados de carga, error y vacio del patron de LeadsList",
+        "Alta y edicion en formulario con validacion por campo al estilo de Login.tsx (errors por campo + helperText), no un unico mensaje global",
+        "Borrado con Dialog de confirmacion al estilo de ArticlesList.tsx:113-124",
+        "El rol se elige entre 'admin' y 'editor' unicamente, y el copy explica que editor solo accede a la seccion de blog",
+        "Los datos salen de un modulo mock propio del recurso, marcado con TODO(feature-28) y con la forma exacta de la tabla users del backend",
+        "No se toca src/lib/api.ts ni se inventa ningun endpoint",
+        "Tests: carga y pinta filas, la busqueda filtra, el formulario valida, y cancelar la confirmacion no borra",
+        "El borrado esta deshabilitado en la fila del usuario en sesion: el backend responde 409 'No puedes eliminar tu propio usuario', asi que la UI no debe ofrecerlo y fallar. El id del usuario en sesion sale de useOutletContext<AdminUser>()",
+        "El copy contempla el 409 'No puedes eliminar al ultimo usuario con rol admin': si solo queda un admin, su borrado se rechaza",
+        "El listado NO pinta paginacion: el endpoint real devuelve {rows} sin total ni limit/offset (a diferencia de leads)"
+      ],
+      "files": [
+        "src/admin/users/UsersList.tsx",
+        "src/admin/users/UserDialog.tsx",
+        "src/admin/users/mockUsers.ts",
+        "src/admin/__tests__/UsersList.test.tsx"
+      ],
+      "depends_on": [
+        27
+      ]
+    },
+    {
+      "id": 29,
+      "name": "Vista admin de imagenes (maqueta con datos mock)",
+      "status": "done",
+      "priority": "alta",
+      "description": "Maqueta la administracion de imagenes de la landing. El backend SI tiene el contrato cerrado (5 endpoints, tabla images), pero esta sin commitear, sin tests y sin desplegar, asi que se maqueta con mock respetando ese contrato al detalle para que el cableado futuro sea mecanico. Contrato en progress/explore_backend_cruds.md §2 y en docs/api-contract.md.",
+      "acceptance": [
+        "Galeria por seccion ('hero' y 'cta_final') que muestra filename, alt, orden, tamano y fecha, con los estados de carga, error y vacio",
+        "Formulario de subida que refleja el contrato real: campo de archivo unico, accept solo image/png, image/jpeg, image/webp (SVG excluido a proposito), limite de 5 MB validado en cliente, y campos seccion (obligatorio), alt (opcional, max 300) y orden (entero >= 0)",
+        "La UI NO ofrece 'reemplazar imagen': el PATCH del backend no admite binario, asi que cambiar una imagen es subir otra y borrar la anterior. El copy lo refleja",
+        "Edicion solo de alt, orden y seccion, que es lo que el PATCH permite",
+        "Borrado con Dialog de confirmacion",
+        "Los datos salen de un modulo mock propio del recurso, marcado con TODO(feature-29), con los 9 campos exactos de META_COLS y sin el campo bytes",
+        "No se toca src/lib/api.ts ni se construye ninguna URL contra el backend real",
+        "Tests: pinta la galeria, el filtro por seccion, el rechazo de un archivo de tipo no permitido y el de uno que excede 5 MB"
+      ],
+      "files": [
+        "src/admin/images/ImagesGrid.tsx",
+        "src/admin/images/ImageUploadDialog.tsx",
+        "src/admin/images/mockImages.ts",
+        "src/admin/__tests__/ImagesGrid.test.tsx"
+      ],
+      "depends_on": [
+        27
+      ]
+    },
+    {
+      "id": 30,
+      "name": "Vista admin de precios (maqueta con datos mock)",
+      "status": "done",
+      "priority": "alta",
+      "description": "Maqueta la administracion de planes de precios. ACTUALIZACION 2026-07-30: el backend YA commiteo su CRUD (commit f878d0b) y publico API_READY.md, asi que el contrato real SUSTITUYE al mapeo que este backlog proponia antes. Contrato verificado en docs/api-contract.md §10.4. Ojo: los campos van en espanol, la tabla es 'planes', la ruta es /api/admin/precios, el descuento es POR PLAN y los campos precio_anual y ahorro_anual son DERIVADOS de solo lectura. Se sigue maquetando con mock (decision del humano); no se cablea.",
+      "acceptance": [
+        "Listado de planes con nombre, precio mensual, descuento, precio anual y ahorro anual calculados, destacado, trial y orden",
+        "precio_anual y ahorro_anual se MUESTRAN calculados y NO son editables: el backend los deriva de precio_mensual y descuento_pct. Un formulario que los ofrezca como campos editables contradice el modelo",
+        "La aritmetica replica la del backend: precio_anual = round(precio_mensual * (1 - descuento_pct/100)) y ahorro_anual = round((precio_mensual - precio_anual) * 12)",
+        "El descuento es POR PLAN (descuento_pct), no un porcentaje global de la seccion",
+        "Los planes Custom se representan con el booleano es_custom: cuando es true no se pinta ninguna cifra de precio. NO te fies de los nulos: el backend devuelve precio_anual y ahorro_anual en null pero precio_mensual en 0 (ver la discrepancia documentada en docs/api-contract.md §10.4)",
+        "Edicion de las vinetas incluidas (vinetas) y de las tachadas (vinetas_tachadas), que son arrays de strings",
+        "El mock usa los nombres de campo REALES del backend: id, nombre, precio_mensual, descuento_pct, precio_anual, ahorro_anual, vinetas, vinetas_tachadas, destacado, trial_texto, es_custom, orden, created_at, updated_at",
+        "El id se modela como string: el backend devuelve el BIGSERIAL sin castear ('id': '1')",
+        "src/components/sections/Pricing.tsx NO se toca: sigue con su array plans hard-coded. Conectar la landing es una feature futura",
+        "No se toca src/lib/api.ts ni se hace ninguna llamada de red",
+        "Tests: pinta los planes, el derivado se recalcula al cambiar precio o descuento, un plan Custom no muestra cifras, y la edicion de vinetas actualiza la vista"
+      ],
+      "files": [
+        "src/admin/prices/PricesList.tsx",
+        "src/admin/prices/PlanEditDialog.tsx",
+        "src/admin/prices/mockPrices.ts",
+        "src/admin/__tests__/PricesList.test.tsx"
+      ],
+      "depends_on": [
+        27
+      ]
+    },
+    {
+      "id": 31,
+      "name": "normalizeApi propaga el campo 'field' de los errores 422",
+      "status": "done",
+      "priority": "media",
+      "description": "Hallazgo de la review de la feature 28 (progress/review_28.md). El backend devuelve { error, field } en sus 422 (contact, usuarios, imagenes y previsiblemente precios), pero ApiFailure en src/lib/api.ts solo tiene { ok, status, error }: normalizeApi descarta 'field'. Consecuencia: una pantalla que quiera marcar en rojo el campo culpable no puede hacerlo con el error del backend, solo con su validacion de cliente. Hoy no rompe nada porque las tres vistas nuevas son maquetas con mock, pero convierte el cableado futuro en una reescritura del manejo de errores en vez del cambio mecanico que se busco al maquetar contra el contrato.",
+      "acceptance": [
+        "ApiFailure incluye field?: string, y normalizeApi lo propaga cuando el body del error lo trae",
+        "El cambio es aditivo: ningun consumidor existente de normalizeApi cambia de forma ni se rompe",
+        "Test en src/lib/__tests__/api.test.ts del caso 422 con field y del caso 422 sin field",
+        "docs/api-contract.md documenta la forma actualizada de ApiFailure"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/lib/__tests__/api.test.ts",
+        "docs/api-contract.md"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": 32,
+      "name": "Cablear la vista de usuarios a /api/admin/users",
+      "status": "done",
+      "priority": "alta",
+      "description": "Sustituye el mock de src/admin/users/mockUsers.ts por helpers reales en src/lib/api.ts. El contrato esta verificado en docs/api-contract.md §10.3 y el backend esta publicado y respondiendo. Es el primer cableado de los tres, asi que fija el patron que seguiran el 33 y el 34.",
+      "acceptance": [
+        "Helpers nuevos en src/lib/api.ts con apiJson y credentials include: listAdminUsers, getAdminUser, createAdminUser, updateAdminUser, deleteAdminUser",
+        "El listado consume GET /api/admin/users, que devuelve { rows } SIN paginacion (ni total ni limit/offset): no se debe anadir TablePagination",
+        "Detalle y escritura usan { user }; el DELETE devuelve 204 sin cuerpo",
+        "Todas las llamadas pasan por normalizeApi; ninguna reintroduce el patron manual ok && data && 'rows' in data",
+        "Los 409 del backend se muestran con su mensaje: 'No puedes eliminar tu propio usuario' y 'No puedes eliminar al ultimo usuario con rol admin'. La UI sigue deshabilitando el borrado de la fila propia, pero el 409 del ultimo admin solo se puede conocer por respuesta",
+        "Los 422 marcan el campo culpable usando el field que la feature 31 anade a ApiFailure",
+        "password_hash no aparece en ningun tipo del front. password se envia en el POST y es opcional en el PATCH",
+        "Se elimina mockUsers.ts, o queda reducido a fixtures de test si los tests lo necesitan",
+        "Tests con vi.spyOn(globalThis,'fetch') y Response reales, con asercion sobre fetch.mock.calls de URL y metodo. No se mockea src/lib/api.ts",
+        "docs/api-contract.md pasa la seccion de usuarios de §10 (maquetacion) a la zona de endpoints vigentes"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/admin/users/UsersList.tsx",
+        "src/admin/users/UserDialog.tsx",
+        "src/admin/users/mockUsers.ts",
+        "src/admin/__tests__/UsersList.test.tsx",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        31
+      ]
+    },
+    {
+      "id": 33,
+      "name": "Cablear la vista de imagenes a /api/images y /api/admin/images",
+      "status": "done",
+      "priority": "alta",
+      "description": "Sustituye el mock de src/admin/images/mockImages.ts por helpers reales. Contrato verificado en docs/api-contract.md §10.2. Es el unico cableado con subida de archivos, asi que no puede usar apiJson tal cual: apiJson fija Content-Type application/json y aqui hace falta multipart con boundary generado por el navegador.",
+      "acceptance": [
+        "El listado consume el endpoint PUBLICO GET /api/images?seccion=, que devuelve { rows } sin paginacion",
+        "La subida es POST /api/admin/images con multipart/form-data, campo de archivo 'file', y NO fija Content-Type a mano: lo genera el navegador con su boundary. Si apiJson no sirve, se anade un helper de subida propio en src/lib/api.ts, nunca un fetch en el componente",
+        "La edicion es PATCH con JSON y solo alt, orden y seccion; el binario sigue siendo inmutable y la UI sigue sin ofrecer 'reemplazar imagen'",
+        "El borrado es DELETE con 204 sin cuerpo",
+        "Los previews apuntan a la URL publica real ${API_BASE}/api/images/${id}/raw, construida con VITE_API_BASE. El JSON no trae ningun campo url",
+        "El id se trata como string: el backend devuelve el BIGSERIAL sin castear",
+        "Los codigos propios del backend se muestran con su mensaje: 413 archivo demasiado grande, 415 tipo no permitido, 422 con field. La validacion en cliente de tipo y tamano se mantiene: evita subir 5 MB para recibir un rechazo",
+        "Se elimina mockImages.ts, o queda reducido a fixtures de test",
+        "Tests con vi.spyOn(globalThis,'fetch') y Response reales; se comprueba que el POST envia FormData y que no se fija Content-Type",
+        "docs/api-contract.md pasa la seccion de imagenes a la zona de endpoints vigentes"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/admin/images/ImagesGrid.tsx",
+        "src/admin/images/ImageUploadDialog.tsx",
+        "src/admin/images/mockImages.ts",
+        "src/admin/__tests__/ImagesGrid.test.tsx",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        31
+      ]
+    },
+    {
+      "id": 34,
+      "name": "Cablear la vista de precios a /api/precios y /api/admin/precios",
+      "status": "done",
+      "priority": "alta",
+      "description": "Sustituye el mock de src/admin/prices/mockPrices.ts por helpers reales. Contrato verificado en docs/api-contract.md §10.4. Tiene una asimetria comprobada contra el servidor vivo: NO existe GET /api/admin/precios, responde 404 y no 401.",
+      "acceptance": [
+        "El LISTADO sale del endpoint PUBLICO GET /api/precios, porque no existe un listado bajo /api/admin/. Verificado: GET /api/admin/precios responde 404",
+        "El detalle y la escritura usan /api/admin/precios[/:id] con { plan }; el DELETE devuelve 204",
+        "precio_anual y ahorro_anual NO se envian nunca en el POST ni en el PATCH: el backend los deriva. Enviarlos seria inventar campos de escritura",
+        "La UI sigue mostrandolos calculados y de solo lectura, y sigue detectando los planes Custom por es_custom y nunca por el nulo (ver la discrepancia de §10.4)",
+        "El id se trata como string",
+        "Los 422 marcan el campo culpable con el field de ApiFailure",
+        "Se elimina mockPrices.ts, o queda reducido a fixtures de test",
+        "Tests con vi.spyOn(globalThis,'fetch') y Response reales, comprobando que el listado pega al endpoint publico y la escritura al de admin",
+        "docs/api-contract.md pasa la seccion de precios a la zona de endpoints vigentes"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/admin/prices/PricesList.tsx",
+        "src/admin/prices/PlanEditDialog.tsx",
+        "src/admin/prices/mockPrices.ts",
+        "src/admin/__tests__/PricesList.test.tsx",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        31
+      ]
+    },
+    {
+      "id": 35,
+      "name": "La seccion de precios de la landing consume /api/precios",
+      "status": "done",
+      "priority": "media",
+      "description": "Sustituye el array plans hard-coded de src/components/sections/Pricing.tsx:11-37 por el endpoint publico GET /api/precios. ATENCION: esta es la ruta critica del negocio, y las tablas del backend estan VACIAS mientras no se carguen datos por el panel. Una landing de captacion no puede quedarse sin precios porque la API este vacia, falle o el servicio de Render este dormido. FALLBACK DECIDIDO: ocultar la seccion cuando no hay datos (no se conservan los planes hard-codeados). Consecuencia asumida por el humano: con las tablas vacias, hoy la seccion no se pintaria hasta cargar planes por el panel.",
+      "acceptance": [
+        "Pricing.tsx consume GET /api/precios via un helper de src/lib/api.ts con normalizeApi. Cero fetch en el componente",
+        "FALLBACK DECIDIDO POR EL HUMANO (2026-07-31): si la API devuelve rows vacio, falla o no responde, la seccion de precios NO se renderiza. NO se mantienen los planes hard-codeados como respaldo: el criterio es no mostrar nunca precios obsoletos como si fueran vigentes. El array plans actual se ELIMINA, no se conserva como valor por defecto",
+        "El estado de carga no debe provocar salto de layout ni un parpadeo en el que la seccion aparezca y desaparezca",
+        "El mapeo respeta el contrato: nombre, precio_mensual, precio_anual (mensual facturando anual, no el total del ano), ahorro_anual, vinetas, vinetas_tachadas, destacado, trial_texto",
+        "Los planes con es_custom no pintan cifras: nada de $0 ni de 'Ahorras $0/ano'",
+        "El toggle mensual/anual sigue funcionando con los datos de la API, y el descuento que se muestra sale de descuento_pct y no del Chip 'Ahorra 10%' hard-coded",
+        "Se anade estado de carga a una seccion que hoy es instantanea, sin provocar salto de layout",
+        "Tests con vi.spyOn(globalThis,'fetch'): render con datos, con rows vacio, y con fallo de red"
+      ],
+      "files": [
+        "src/components/sections/Pricing.tsx",
+        "src/lib/api.ts",
+        "src/components/sections/__tests__/Pricing.test.tsx",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        34
+      ]
+    },
+    {
+      "id": 36,
+      "name": "El Hero y el CTA final consumen las imagenes de la API",
+      "status": "done",
+      "priority": "media",
+      "description": "Sustituye los estaticos de public/ por GET /api/images?seccion=. Hoy Hero.tsx:10-12 usa hero.png, hero-2.png y hero-3.png para el carrusel, y CTAFinal.tsx:42 usa maia.png. Mismo aviso que la feature 35: las tablas estan vacias hasta que se carguen imagenes por el panel, y el carrusel del Hero es lo primero que ve un visitante. FALLBACK DECIDIDO: coherente con la 35, no se pintan imagenes de la API si no las hay. El tratamiento visual concreto del Hero vacio se justifica en el informe.",
+      "acceptance": [
+        "Hero consume seccion 'hero' y CTAFinal consume seccion 'cta_final', via helper de src/lib/api.ts. Cero fetch en los componentes",
+        "FALLBACK DECIDIDO POR EL HUMANO (2026-07-31): coherente con la feature 35, si la API no devuelve imagenes no se pintan imagenes de la API. OJO: el Hero es lo primero que ve un visitante y no puede quedar como un hueco roto; hay que decidir y justificar en el informe si se degrada a una sola imagen estatica de public/ o si el carrusel se oculta entero, y cuidar que no haya salto de layout",
+        "El src de cada img es ${API_BASE}/api/images/${id}/raw y el alt sale del campo alt de la API",
+        "Se respeta el orden que da el backend (orden ASC, id ASC)",
+        "Ojo al rendimiento: ese endpoint sirve el binario desde Postgres sin Cache-Control ni ETag, asi que cada carga es un hit a la base. Si se detecta un coste inaceptable, documentarlo en vez de inventar una cache",
+        "Tests con vi.spyOn(globalThis,'fetch'): render con imagenes de la API, y fallback con rows vacio y con fallo de red"
+      ],
+      "files": [
+        "src/components/sections/Hero.tsx",
+        "src/components/sections/CTAFinal.tsx",
+        "src/lib/api.ts",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        33
+      ]
+    }
+  ]
+}

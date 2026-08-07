@@ -1,11 +1,15 @@
 import { Box, Stack, Typography, Button, Divider } from '@mui/material';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { logout, type AdminUser } from '../lib/api';
+import { tokens } from '../theme/tokens';
 
 const NAV_ITEMS = [
-  { to: '/admin',           label: 'Inicio', end: true,  enabled: true },
-  { to: '/admin/leads',     label: 'Leads',  end: false, enabled: true },  // feature 16
-  { to: '/admin/articles',  label: 'Blog',   end: false, enabled: true },  // feature 13
+  { to: '/admin',           label: 'Inicio',   end: true  },
+  { to: '/admin/leads',     label: 'Leads',    end: false },
+  { to: '/admin/articles',  label: 'Blog',     end: false },
+  { to: '/admin/images',    label: 'Imágenes', end: false },
+  { to: '/admin/prices',    label: 'Precios',  end: false },
+  { to: '/admin/users',     label: 'Usuarios', end: false },
 ];
 
 interface Props {
@@ -14,8 +18,10 @@ interface Props {
 
 /**
  * Layout privado: sidebar minimal + `<Outlet />` para las páginas anidadas.
- * Las secciones "Leads" y "Blog" se dejan como placeholders deshabilitados
- * (se activarán en las features 16 y 13 respectivamente).
+ * Todas las secciones de `NAV_ITEMS` están activas y enlazan a su ruta: primero
+ * el contenido ("Inicio", "Leads", "Blog", "Imágenes", "Precios") y al final la
+ * gestión de accesos ("Usuarios"). Nunca se añaden ítems deshabilitados de tipo
+ * "próximamente": la feature 18 los eliminó y hay un test que lo vigila.
  */
 export default function AdminLayout({ user }: Props) {
   const navigate = useNavigate();
@@ -55,44 +61,23 @@ export default function AdminLayout({ user }: Props) {
 
           <Stack component="nav" spacing={0.5} aria-label="Navegación admin">
             {NAV_ITEMS.map(item => (
-              item.enabled ? (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  style={({ isActive }) => ({
-                    display: 'block',
-                    padding: '10px 12px',
-                    borderRadius: 10,
-                    textDecoration: 'none',
-                    color: isActive ? '#E8440A' : '#1A1410',
-                    background: isActive ? '#FFF0EB' : 'transparent',
-                    fontWeight: isActive ? 600 : 500,
-                    fontSize: 14,
-                  })}
-                >
-                  {item.label}
-                </NavLink>
-              ) : (
-                <Box
-                  key={item.to}
-                  sx={{
-                    px: 1.5,
-                    py: 1.25,
-                    borderRadius: 1.25,
-                    color: 'text.disabled',
-                    fontSize: 14,
-                    fontWeight: 500,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                  aria-disabled="true"
-                >
-                  <span>{item.label}</span>
-                  <Typography variant="caption" sx={{ color: 'text.disabled' }}>próximamente</Typography>
-                </Box>
-              )
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                style={({ isActive }) => ({
+                  display: 'block',
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  textDecoration: 'none',
+                  color: isActive ? tokens.brand.orange : tokens.text.primary,
+                  background: isActive ? tokens.brand.orangeXL : 'transparent',
+                  fontWeight: isActive ? 600 : 500,
+                  fontSize: 14,
+                })}
+              >
+                {item.label}
+              </NavLink>
             ))}
           </Stack>
         </Stack>

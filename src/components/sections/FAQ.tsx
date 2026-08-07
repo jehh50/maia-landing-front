@@ -42,7 +42,7 @@ export default function FAQ() {
         <Box className="reveal">
           {faqs.map((f, i) => (
             <Accordion key={i} disableGutters elevation={0} sx={{
-              background: '#fff', mb: 1.5, borderRadius: '12px !important',
+              bgcolor: 'background.paper', mb: 1.5, borderRadius: '12px !important',
               border: '1px solid var(--border)', '&::before': { display: 'none' },
             }}>
               <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 3, py: 1 }}>

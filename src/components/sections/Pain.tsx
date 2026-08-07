@@ -1,4 +1,5 @@
 import { Box, Container, Typography, Grid } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import GroupRemoveIcon from '@mui/icons-material/GroupRemove';
 import SavingsIcon from '@mui/icons-material/Savings';
 import HourglassTopIcon from '@mui/icons-material/HourglassTop';
@@ -6,6 +7,7 @@ import SpeakerNotesOffIcon from '@mui/icons-material/SpeakerNotesOff';
 import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { SvgIconComponent } from '@mui/icons-material';
+import { tokens } from '../../theme/tokens';
 
 interface Pain {
   Icon: SvgIconComponent;
@@ -30,35 +32,35 @@ function highlightBrand(text: string) {
 const pains: Pain[] = [
   {
     Icon: GroupRemoveIcon,
-    accent: '#f55c2b',
+    accent: tokens.accent.coral,
     t: 'Talento humano atrapado',
     p: 'Tu equipo pasa horas respondiendo las mismas preguntas básicas, calificando contactos o copiando datos manualmente.',
     s: 'Con MaIA puedes crear agentes con capacidad de razonamiento. No repiten textos como un robot clásico; entienden el contexto y resuelven la consulta de tus clientes de principio a fin.',
   },
   {
     Icon: SavingsIcon,
-    accent: '#7C3AED',
+    accent: tokens.accent.violet,
     t: 'Costos de operación elevados',
     p: 'Contratar y entrenar personal de soporte o ventas es lento y costoso. Además, la rotación constante afecta directamente tu productividad.',
     s: 'Tus asistentes virtuales operan de forma impecable las 24 horas, los 365 días del año, sin cansarse. Crece tu capacidad de respuesta de inmediato a una fracción de lo que costaría ampliar tu nómina.',
   },
   {
     Icon: HourglassTopIcon,
-    accent: '#0369A1',
+    accent: tokens.accent.blue,
     t: 'Clientes impacientes',
     p: 'Los clientes exigen respuestas inmediatas. Los chats tradicionales con menús de botones rígidos los frustran y los obligan a esperar a que un humano se libere.',
     s: 'Atención inmediata y natural siempre. MaIA entiende textos, mensajes de voz y fotos de tus productos.',
   },
   {
     Icon: SpeakerNotesOffIcon,
-    accent: '#b90f0f',
+    accent: tokens.accent.red,
     t: 'Bots que solo contestan, pero no actúan',
     p: 'Un chat que solo responde preguntas frecuentes no soluciona el fondo. Si no puede realizar acciones reales, tu equipo humano sigue atrapado en el trabajo administrativo.',
     s: 'Tus agentes se conectan directamente con tus sistemas diarios. Pueden agendar citas, registrar pedidos o realizar tareas de forma 100% autónoma.',
   },
   {
     Icon: SettingsSuggestIcon,
-    accent: '#0891B2',
+    accent: tokens.accent.cyan,
     t: 'La complejidad de implementar IA',
     p: 'Pensar que para tener Inteligencia Artificial necesitas contratar ingenieros costosos, gastar miles de dólares y esperar meses para ver un resultado.',
     s: 'Creación guiada sin código. MaIA actúa como un especialista que te entrevista en lenguaje sencillo, aprende de tu negocio y construye tu asistente ideal listo para trabajar en minutos.',
@@ -86,18 +88,18 @@ export default function Pain() {
                   flexDirection: 'column',
                   height: '100%',
                   borderRadius: 3,
-                  background: '#fff',
+                  bgcolor: 'background.paper',
                   border: '1px solid var(--border)',
                   overflow: 'hidden',
-                  boxShadow: '0 2px 16px rgba(232,68,10,0.06)',
+                  boxShadow: `0 2px 16px ${alpha(tokens.brand.orange, 0.06)}`,
                   transition: 'transform 0.25s ease, box-shadow 0.25s ease',
                   '&:hover': {
                     transform: 'translateY(-6px)',
-                    boxShadow: '0 20px 44px rgba(232,68,10,0.16)',
+                    boxShadow: `0 20px 44px ${alpha(tokens.brand.orange, 0.16)}`,
                   },
                   '&:hover .pain-icon': {
                     background: p.accent,
-                    color: '#fff',
+                    color: 'common.white',
                   },
                 }}
               >
@@ -132,7 +134,7 @@ export default function Pain() {
                     mt: 'auto',
                     p: 3,
                     pt: 2.5,
-                    background: 'linear-gradient(180deg, rgba(22,163,74,0.06) 0%, rgba(22,163,74,0.10) 100%)',
+                    background: `linear-gradient(180deg, ${alpha(tokens.brand.green, 0.06)} 0%, ${alpha(tokens.brand.green, 0.1)} 100%)`,
                     borderTop: '1px solid var(--border)',
                   }}
                 >

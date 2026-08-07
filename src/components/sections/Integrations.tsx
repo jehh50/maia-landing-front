@@ -7,7 +7,7 @@ const integrations = [
 
 export default function Integrations() {
   return (
-    <Box component="section" id="integrations" sx={{ py: { xs: 7, md: 10 }, background: 'linear-gradient(180deg, var(--bg-soft) 0%, #FFFFFF 30%, #FFFFFF 70%, var(--bg-soft) 100%)' }}>
+    <Box component="section" id="integrations" sx={{ py: { xs: 7, md: 10 }, background: 'linear-gradient(180deg, var(--bg-soft) 0%, var(--bg) 30%, var(--bg) 70%, var(--bg-soft) 100%)' }}>
       <Container>
         <Box className="reveal" sx={{ textAlign: 'center', maxWidth: 680, mx: 'auto', mb: 6 }}>
           <Typography variant="overline" color="primary" fontWeight={600}>Herramientas</Typography>
@@ -19,7 +19,7 @@ export default function Integrations() {
         <Box className="reveal" sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, justifyContent: 'center' }}>
           {integrations.map(i => (
             <Box key={i} sx={{
-              px: 2.5, py: 1.5, borderRadius: 100, background: '#fff',
+              px: 2.5, py: 1.5, borderRadius: 100, bgcolor: 'background.paper',
               border: '1px solid var(--border2)', fontSize: 14, fontWeight: 500, '&:hover': { background: 'var(--orange-xl)', color: 'primary.main' }
             }}>{i}</Box>
           ))}

@@ -6,7 +6,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Footer from '../components/Footer';
 import { BlogCard } from '../components/sections/Blog';
-import { listPublicArticles, type PublicArticle } from '../lib/api';
+import { listPublicArticles, normalizeApi, type PublicArticle } from '../lib/api';
 
 export default function BlogIndex() {
   const [rows, setRows] = useState<PublicArticle[]>([]);
@@ -17,10 +17,10 @@ export default function BlogIndex() {
     let alive = true;
     (async () => {
       setLoading(true);
-      const { ok, data } = await listPublicArticles({ limit: 50 });
+      const res = await normalizeApi(listPublicArticles({ limit: 50 }), 'rows');
       if (!alive) return;
-      if (ok && data && 'rows' in data && Array.isArray(data.rows)) {
-        setRows(data.rows);
+      if (res.ok && Array.isArray(res.data.rows)) {
+        setRows(res.data.rows);
         setError(null);
       } else {
         setRows([]);
@@ -38,7 +38,7 @@ export default function BlogIndex() {
         sx={{
           py: 2,
           borderBottom: '1px solid var(--border)',
-          background: '#fff',
+          bgcolor: 'background.paper',
           position: 'sticky',
           top: 0,
           zIndex: 10,

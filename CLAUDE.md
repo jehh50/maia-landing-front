@@ -11,22 +11,29 @@ implementar.
 ### Reglas duras
 
 - ❌ **No edites** archivos de código de la app directamente (ni con Edit, ni
-  con Write, ni con Bash): `app/`, `resources/`, `routes/`, `database/`,
-  `config/`, `public/`, `tests/`, ni archivos de build (`composer.json`,
-  `package.json`, `vite.config.js`, `tailwind.config.js`).
+  con Write, ni con Bash): `src/`, `public/`, ni archivos de infraestructura
+  (`package.json`, `vite.config.ts`, `tsconfig.json`, `vercel.json`,
+  `index.html`, `.gitignore`).
 - ❌ **No marques** features como `done` en `feature_list.json`.
 - ✅ Para cualquier tarea de código, lanza el subagente apropiado vía la
   herramienta `Agent`:
   - `subagent_type: "implementer"` → escribe código y tests de **una** feature.
   - `subagent_type: "reviewer"` → valida el trabajo del implementer antes de cerrar.
   - Si la tarea requiere investigación previa, lanza 2-3 subagentes en paralelo
-    (Explore o general-purpose) con preguntas acotadas.
+    (`Explore` o `general-purpose`) con preguntas acotadas. **No existe un
+    subagente `explorer`.**
 
 ### Protocolo de arranque (al recibir la primera tarea)
 
 1. Lee `AGENTS.md` para orientarte.
 2. Lee `feature_list.json` y `progress/current.md`.
-3. Ejecuta `node init.js`. Si falla, paras y reportas.
+3. Ejecuta el bloque de verificación (detalle en `docs/verification.md`):
+   ```bash
+   npm test && npm run typecheck && npm run build
+   ```
+   Los tres deben terminar en 0. El aviso de chunk >500 kB del build es
+   esperado. Si el baseline ya está rojo, **paras y reportas** — no repartes
+   trabajo sobre un entorno roto.
 4. Aplica la tabla de escalado de `.claude/agents/leader.md`.
 
 ### Regla anti-teléfono-descompuesto

@@ -45,7 +45,7 @@ export default function LegalPage({ doc }: LegalPageProps) {
         sx={{
           py: 2,
           borderBottom: '1px solid var(--border)',
-          background: '#fff',
+          bgcolor: 'background.paper',
           position: 'sticky',
           top: 0,
           zIndex: 10,
@@ -72,7 +72,7 @@ export default function LegalPage({ doc }: LegalPageProps) {
                   color: 'var(--muted)',
                   '&.Mui-selected': {
                     background: 'var(--orange)',
-                    color: '#fff',
+                    color: 'common.white',
                     '&:hover': { background: 'var(--orange-h)' },
                   },
                 },
@@ -123,7 +123,7 @@ export default function LegalPage({ doc }: LegalPageProps) {
       </Box>
 
       {/* Contenido */}
-      <Box component="main" sx={{ flex: 1, py: { xs: 5, md: 7 }, background: '#fff' }}>
+      <Box component="main" sx={{ flex: 1, py: { xs: 5, md: 7 }, bgcolor: 'background.paper' }}>
         <Container>
           <Box
             sx={{

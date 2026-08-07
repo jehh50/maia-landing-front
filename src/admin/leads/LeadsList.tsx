@@ -5,8 +5,9 @@ import {
   IconButton, CircularProgress,
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import { listAdminLeads, type AdminLead, type LeadType } from '../../lib/api';
+import { listAdminLeads, normalizeApi, type AdminLead, type LeadType } from '../../lib/api';
 import LeadDetailDialog from './LeadDetailDialog';
+import { tokens } from '../../theme/tokens';
 
 const TIPOS: { value: '' | LeadType; label: string }[] = [
   { value: '',         label: 'Todos los tipos' },
@@ -30,19 +31,22 @@ export default function LeadsList() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { ok, data } = await listAdminLeads({
-      q: q.trim() || undefined,
-      tipo: tipo || undefined,
-      pais_iso: paisIso || undefined,
-      limit: rowsPerPage,
-      offset: page * rowsPerPage,
-    });
-    if (ok && data && 'rows' in data) {
-      setRows(data.rows);
-      setTotal(data.total);
+    const res = await normalizeApi(
+      listAdminLeads({
+        q: q.trim() || undefined,
+        tipo: tipo || undefined,
+        pais_iso: paisIso || undefined,
+        limit: rowsPerPage,
+        offset: page * rowsPerPage,
+      }),
+      'rows',
+      'No pudimos cargar los leads',
+    );
+    if (res.ok) {
+      setRows(res.data.rows);
+      setTotal(res.data.total);
     } else {
-      const msg = data && 'error' in data && data.error ? data.error : 'No pudimos cargar los leads';
-      setError(msg);
+      setError(res.error);
       setRows([]);
       setTotal(0);
     }
@@ -128,7 +132,7 @@ export default function LeadsList() {
                 <TableCell sx={{ whiteSpace: 'nowrap', color: 'text.secondary', fontSize: 13 }}>
                   {new Date(r.created_at).toLocaleDateString('es-MX')}
                 </TableCell>
-                <TableCell>{r.nombre || <em style={{ color: '#A89E9A' }}>—</em>}</TableCell>
+                <TableCell>{r.nombre || <em style={{ color: tokens.text.disabled }}>—</em>}</TableCell>
                 <TableCell>{r.email}</TableCell>
                 <TableCell>{r.empresa || '—'}</TableCell>
                 <TableCell>{r.industria || '—'}</TableCell>

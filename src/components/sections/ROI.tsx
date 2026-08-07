@@ -36,7 +36,7 @@ export default function ROI({ isAnnual }: ROIProps) {
         </Box>
         <Box className="reveal" sx={{
           display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4,
-          background: '#fff', borderRadius: 4, p: { xs: 3, md: 5 }, border: '1px solid var(--border)',
+          bgcolor: 'background.paper', borderRadius: 4, p: { xs: 3, md: 5 }, border: '1px solid var(--border)',
         }}>
           <Box>
             <Typography variant="h6" fontWeight={700} sx={{ mb: 3 }}>Ajusta tu situación</Typography>
