@@ -6,6 +6,32 @@
 
 ---
 
+## Bitácora de restauración de la feature 38 (git, no producto) — 2026-08-09
+
+Tarea puramente de git: restaurar la feature 38 (aprobada por el reviewer en
+`tmp/addons-snapshot`, 1bc3dc5) sobre `feat/37-admin-complementos`, que solo
+tenía commiteada la feature 37. Restaurado con `git checkout tmp/addons-snapshot
+-- <rutas>` (sin reescribir código a mano) y commiteado.
+
+- **Hashes finales de la rama `feat/37-admin-complementos`:**
+  - `c6a23b6` — `feat(admin): añade el panel de complementos del CRUD de add-ons` (feature 37)
+  - `9cf8991` — `docs(api): recoge el handoff del backend con el CRUD de add-ons`
+  - `991a1c4` — `feat(admin): hace editables los paquetes de cada complemento` (feature 38, este commit)
+- **Verificación previa al commit:** `npm test` → **21 archivos / 234 tests**,
+  exit 0 · `npm run typecheck` exit 0 · `npm run build` exit 0 (aviso esperado
+  de chunk >500 kB). Cada comando ejecutado por separado, sin flake.
+- **Comprobación final** `git diff tmp/addons-snapshot feat/37-admin-complementos`
+  → **vacío**. La rama es byte a byte el estado 37+38 verificado y aprobado
+  por el reviewer.
+- `tsconfig.tsbuildinfo` quedó fuera del commit (no trackeable según §8),
+  modificado en el working tree.
+- Rama temporal `tmp/addons-snapshot` borrada tras confirmar el diff vacío.
+
+Este bloque sustituye al informe de bloqueo que había antes en este archivo
+(quedó obsoleto en cuanto se restauró la feature 38 y se commiteó).
+
+---
+
 ## Estado
 
 **Feature en curso:** —
