@@ -3,8 +3,12 @@ import {
   normalizeApi,
   GENERIC_API_ERROR,
   createAdminArticle,
+  deleteAdminComplemento,
+  getAdminComplemento,
   listAdminLeads,
+  listComplementos,
   listPublicArticles,
+  type AdminComplemento,
   type AdminLead,
 } from '../api';
 
@@ -200,5 +204,87 @@ describe('normalizeApi — field de los errores de validación', () => {
 
     expect(res).toEqual({ ok: false, status: 0, error: 'Sin conexión' });
     expect('field' in res).toBe(false);
+  });
+});
+
+// --- Complementos (feature 37) — mismo molde que precios, sin componente de por medio ---
+
+const complemento = (over: Partial<AdminComplemento> = {}): AdminComplemento => ({
+  id: '1',
+  nombre: 'Créditos adicionales',
+  descripcion: 'Amplía tu consumo mensual sin cambiar de plan',
+  precio: 0.2,
+  unidad: '/ crédito',
+  orden: 1,
+  paquetes: [],
+  ...over,
+});
+
+describe('listComplementos', () => {
+  it('pega al endpoint PÚBLICO GET /api/complementos, sin cookie', async () => {
+    const spy = mockFetch(new Response(JSON.stringify({ rows: [complemento()] }), { status: 200 }));
+
+    const res = await listComplementos();
+
+    expect(res).toEqual({ ok: true, status: 200, data: { rows: [complemento()] } });
+    const [url, init] = spy.mock.calls[0];
+    expect(String(url)).toBe('/api/complementos');
+    expect(init).toMatchObject({ method: 'GET', credentials: 'omit' });
+  });
+
+  it('un complemento con precio null trae sus paquetes anidados, siempre presentes', async () => {
+    const conPaquetes = complemento({
+      id: '2',
+      nombre: 'Packs de créditos',
+      precio: null,
+      unidad: null,
+      orden: 2,
+      paquetes: [
+        { id: '7', complemento_id: '2', nombre: 'Pack S', descripcion: '500 créditos', precio: 90, orden: 1 },
+      ],
+    });
+    mockFetch(new Response(JSON.stringify({ rows: [conPaquetes] }), { status: 200 }));
+
+    const res = await normalizeApi(listComplementos(), 'rows');
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('esperaba éxito');
+    expect(res.data.rows[0].precio).toBeNull();
+    expect(res.data.rows[0].paquetes).toHaveLength(1);
+    expect(res.data.rows[0].paquetes[0].precio).toBe(90);
+  });
+});
+
+describe('getAdminComplemento', () => {
+  it('el detalle sí es privado: GET /api/admin/complementos/:id con cookie', async () => {
+    const spy = mockFetch(new Response(JSON.stringify({ complemento: complemento() }), { status: 200 }));
+
+    await getAdminComplemento('1');
+
+    const [url, init] = spy.mock.calls[0];
+    expect(String(url)).toBe('/api/admin/complementos/1');
+    expect(init).toMatchObject({ method: 'GET', credentials: 'include' });
+  });
+});
+
+describe('deleteAdminComplemento', () => {
+  it('sintetiza { ok: true } cuando la respuesta es 204 sin cuerpo', async () => {
+    const spy = mockFetch(new Response(null, { status: 204 }));
+
+    const res = await deleteAdminComplemento('1');
+
+    expect(res).toEqual({ ok: true, status: 204, data: { ok: true } });
+    const [url, init] = spy.mock.calls[0];
+    expect(String(url)).toBe('/api/admin/complementos/1');
+    expect(init).toMatchObject({ method: 'DELETE', credentials: 'include' });
+  });
+
+  it('un error sin cuerpo NO se confunde con el 204: sigue siendo un fallo', async () => {
+    mockFetch(new Response(null, { status: 500 }));
+
+    const res = await deleteAdminComplemento('1');
+
+    expect(res.ok).toBe(false);
+    expect(res.data).toBeNull();
   });
 });

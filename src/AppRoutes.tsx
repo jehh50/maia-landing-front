@@ -29,6 +29,7 @@ const ArticlesList = lazy(() => import('./admin/articles/ArticlesList'));
 const ArticleEdit  = lazy(() => import('./admin/articles/ArticleEdit'));
 const ImagesGrid   = lazy(() => import('./admin/images/ImagesGrid'));
 const PricesList   = lazy(() => import('./admin/prices/PricesList'));
+const ComplementosList = lazy(() => import('./admin/addons/ComplementosList'));
 const UsersList    = lazy(() => import('./admin/users/UsersList'));
 
 /**
@@ -71,6 +72,7 @@ export default function AppRoutes() {
           <Route path="articles/:id" element={<AdminPage><ArticleEdit /></AdminPage>} />
           <Route path="images"       element={<AdminPage><ImagesGrid /></AdminPage>} />
           <Route path="prices"       element={<AdminPage><PricesList /></AdminPage>} />
+          <Route path="complementos" element={<AdminPage><ComplementosList /></AdminPage>} />
           <Route path="users"        element={<AdminPage><UsersList /></AdminPage>} />
         </Route>
         <Route path="*" element={<NotFound />} />

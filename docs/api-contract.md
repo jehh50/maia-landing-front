@@ -558,6 +558,130 @@ Dos detalles del mapeo que el contrato impone a esa sección:
   se muestra el mayor, y solo se afirma «Ahorra X%» a secas cuando todos los
   planes con precio comparten ese descuento. Los `es_custom` no cuentan.
 
+## 4 quinquies. Complementos (`/api/complementos` + `/api/admin/complementos`) — **vigente**
+
+Consumido desde la **feature 37** (panel). Contrato del backend en
+`API_READY.md` (actualizado el 2026-08-09). Tabla `complementos`, con sus
+paquetes (tabla `paquetes`) **anidados** en la misma respuesta, de **solo
+lectura** en esta feature (su propio CRUD contra `/api/admin/paquetes` es la
+feature 38). El objeto `complemento` tiene **exactamente estos 6 campos**:
+
+```
+id, nombre, descripcion, precio, unidad, orden, paquetes
+```
+
+| Método | Ruta | Helper | Auth | OK |
+|---|---|---|---|---|
+| `GET` | `/api/complementos` | `listComplementos()` | **pública** | `200 { rows: AdminComplemento[] }` |
+| `GET` | `/api/admin/complementos/:id` | `getAdminComplemento(id)` | cookie, **solo `admin`** | `200 { complemento }` |
+| `POST` | `/api/admin/complementos` | `createAdminComplemento(input)` | cookie, **solo `admin`** | `201 { complemento }` |
+| `PATCH` | `/api/admin/complementos/:id` | `updateAdminComplemento(id, patch)` | cookie, **solo `admin`** | `200 { complemento }` |
+| `DELETE` | `/api/admin/complementos/:id` | `deleteAdminComplemento(id)` | cookie, **solo `admin`** | `204` **sin cuerpo** |
+| ~~`GET`~~ | ~~`/api/admin/complementos`~~ | — | — | **NO EXISTE** (ver aviso) |
+
+> ⚠️ **No hay listado bajo `/api/admin/`, misma asimetría que precios (§4
+> quater).** El listado público ya devuelve todos los complementos, con sus
+> paquetes anidados: no hay borradores ni add-ons ocultos que un listado
+> privado pudiera revelar de más. **Para listar en el panel se usa el
+> endpoint público `GET /api/complementos`**, vía `publicJson`
+> (`credentials: 'omit'`). Responde `{ rows }` **sin paginación**, ordenado
+> por `orden ASC` (y, dentro de cada complemento, sus paquetes también por
+> `orden ASC`), así que la pantalla de complementos **no** lleva
+> `TablePagination`. El detalle (`GET .../:id`) y las tres escrituras sí son
+> privados, a diferencia de imágenes y precios: incluso el `GET` de detalle
+> exige rol `admin`.
+
+```ts
+// Solo lectura en esta feature: la edición contra `/api/admin/paquetes` es la feature 38.
+interface AdminPaquete {
+  id: string;                 // BIGSERIAL sin castear
+  complemento_id: string;
+  nombre: string;
+  descripcion: string | null;
+  precio: number;              // OBLIGATORIO, nunca null (a diferencia del complemento)
+  orden: number;
+}
+
+interface AdminComplemento {
+  id: string;                  // BIGSERIAL sin castear
+  nombre: string;
+  descripcion: string | null;
+  precio: number | null;       // null = "sin precio unitario propio", NUNCA 0
+  unidad: string | null;
+  orden: number;
+  paquetes: AdminPaquete[];    // SIEMPRE presente, [] si no hay: se recorre sin guardas
+}
+
+// Campos escribibles = los que admite POST/PATCH del backend. `paquetes` se
+// omite: no se escribe desde este endpoint (su CRUD propio es la feature 38).
+type ComplementoInput =
+  & Pick<AdminComplemento, 'nombre'>
+  & Partial<Pick<AdminComplemento, 'descripcion' | 'precio' | 'unidad' | 'orden'>>;
+
+type ComplementoPatchInput = Partial<ComplementoInput>;
+```
+
+### `precio: null` no es `precio: 0`
+
+`null` significa "este complemento no publica un precio unitario propio
+porque son sus paquetes los que lo llevan" — el caso real es «Packs de
+créditos» (`precio: null`, paquetes «Pack S/M/L» con su propio `precio`).
+Un `0` significaría "gratis". La UI del panel nunca pinta `$null` ni `$0`: si
+`precio` es `null`, se pintan los paquetes anidados (o un guion si tampoco hay
+paquetes). En el formulario, **dejar el campo de precio vacío manda `null`**,
+nunca `0` — y en un `PATCH`, mandar `null` **borra** el valor guardado.
+
+`unidad` viaja **aparte** del precio y también puede ser `null`. La API
+devuelve `precio: 0.2` + `unidad: "/ crédito"`, no un string ya formateado: el
+símbolo `$` y el formato los pone el front con `formatMoneda`, nunca el
+backend.
+
+### Límites y normalización del backend
+
+`nombre` obligatorio en el `POST`, string no vacío, truncado a 120
+(`COMPLEMENTO_NOMBRE_MAX`); `descripcion` trunca a 500
+(`COMPLEMENTO_DESCRIPCION_MAX`) y admite `null`; `unidad` trunca a 60
+(`COMPLEMENTO_UNIDAD_MAX`) y admite `null`; `precio` entre `0` y
+`99999999.99` (`COMPLEMENTO_PRECIO_MAX`, `NUMERIC(10,2)`) o `null`; `orden`
+entero en `[0, 2147483647]` (`COMPLEMENTO_ORDEN_MAX`), default `0`.
+
+**Los campos de texto ya no se coercionan.** Mandar `{ "nombre": 123 }` o
+`{ "nombre": {} }` es `422`, no una fila guardada con un valor inventado:
+manda strings de verdad, o `null` en los campos que lo admiten.
+
+Un `PATCH` vacío, o que solo traiga campos no editables, responde `422` y no
+modifica nada.
+
+Errores:
+
+| Status | Body | Nota |
+|---|---|---|
+| `422` | `{ error, field }` con `field` en `nombre` \| `precio` \| `unidad` \| `orden` | `descripcion` se trunca, no se rechaza por longitud, pero un tipo inválido sí es `422 { field: 'descripcion' }` |
+| `422` | `{ error: 'Nada que actualizar: se esperaba …' }` | `PATCH` sin ningún campo editable; sin `field` |
+| `404` | `{ error: 'Complemento no encontrado' }` | también con un `:id` no numérico o desbordado |
+| `403` | `{ ok: false, error: 'forbidden', message }` | forma anómala, §10.1 → `adminErrorMessage` |
+
+El `DELETE` responde `204` sin cuerpo, así que `deleteAdminComplemento`
+sintetiza el `{ ok: true }` con el mismo molde que `deleteAdminPlan` (§4
+quater, asimetría 3 de §4 bis).
+
+> ⚠️ **Borrar un complemento borra sus paquetes en cascada, sin aviso del
+> backend y sin vuelta atrás.** `DELETE /api/admin/complementos/2` se lleva
+> por delante todos sus paquetes. El panel pide confirmación explícita que
+> menciona la cascada y cuántos paquetes se llevan por delante.
+
+> ℹ️ **Los paquetes son de solo lectura en esta feature.** Se listan
+> anidados en cada complemento, siempre presentes (`[]` si no hay), sin
+> guardas. Su propio CRUD contra `/api/admin/paquetes` (alta, edición y
+> borrado) es la **feature 38**: hoy el panel no ofrece ningún botón de
+> crear, editar ni borrar un paquete.
+
+⚠️ **Las tablas están creadas pero VACÍAS y no hay seed**: `GET /api/complementos`
+responde `200 { "rows": [] }` hasta que se carguen complementos **desde el
+panel**. `src/components/sections/Addons.tsx` sigue con su array hardcodeado
+(líneas 20-56): migrarlo a este endpoint, igual que la feature 35 hizo con
+precios, **no está en el backlog** — es fuera de alcance de esta feature.
+
 ## 5. Admin — artículos (`/api/admin/articles`)
 
 Privados (`credentials: 'include'`).

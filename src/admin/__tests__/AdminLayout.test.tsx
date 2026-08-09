@@ -30,19 +30,20 @@ const nav = () => screen.getByRole('navigation', { name: /navegación admin/i })
 afterEach(() => vi.restoreAllMocks());
 
 describe('AdminLayout — navegación', () => {
-  it('muestra las seis secciones como enlaces a su ruta, en orden', () => {
+  it('muestra las siete secciones como enlaces a su ruta, en orden', () => {
     renderAt('/admin');
 
     const links = within(nav()).getAllByRole('link');
     expect(links.map(l => l.textContent)).toEqual([
-      'Inicio', 'Leads', 'Blog', 'Imágenes', 'Precios', 'Usuarios',
+      'Inicio', 'Leads', 'Blog', 'Imágenes', 'Precios', 'Complementos', 'Usuarios',
     ]);
     expect(links[0]).toHaveAttribute('href', '/admin');
     expect(links[1]).toHaveAttribute('href', '/admin/leads');
     expect(links[2]).toHaveAttribute('href', '/admin/articles');
     expect(links[3]).toHaveAttribute('href', '/admin/images');
     expect(links[4]).toHaveAttribute('href', '/admin/prices');
-    expect(links[5]).toHaveAttribute('href', '/admin/users');
+    expect(links[5]).toHaveAttribute('href', '/admin/complementos');
+    expect(links[6]).toHaveAttribute('href', '/admin/users');
   });
 
   it('marca como activo solo el ítem de la ruta actual', () => {

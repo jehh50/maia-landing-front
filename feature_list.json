@@ -1,6 +1,6 @@
 {
   "project": "maia-landing-front",
-  "updated_at": "2026-07-31",
+  "updated_at": "2026-08-09",
   "notes": "Backlog vivo. Estados: pending | in_progress | done | blocked. Una feature a la vez, la de menor id entre las pending (ver AGENTS.md §4). Los ids 1-16 corresponden a la construcción original de la app (ya en produccion) y no se re-listan aqui; el backlog abierto arranca en 17.",
   "features": [
     {
@@ -444,6 +444,73 @@
       ],
       "depends_on": [
         33
+      ]
+    },
+    {
+      "id": 37,
+      "name": "Vista admin de complementos (add-ons) cableada a /api/complementos y /api/admin/complementos",
+      "status": "done",
+      "priority": "alta",
+      "description": "El panel no tiene pantalla para los add-ons: la seccion Addons.tsx de la landing sigue con el array hardcodeado de Addons.tsx:20-56 y no hay forma de cargar complementos por el panel. El backend ya expone el recurso (API_READY.md, 2026-08-09). Aqui se cablea DIRECTO contra la API real: no se repite el ciclo maqueta-con-mock + cableado de las features 27-34, porque el endpoint ya existe y un mock seria trabajo que hay que deshacer. Los paquetes anidados se muestran de solo lectura; su edicion es la feature 38. Misma asimetria que precios: NO existe GET /api/admin/complementos, el listado del panel sale del endpoint publico.",
+      "acceptance": [
+        "AdminLayout gana una entrada 'Complementos' en NAV_ITEMS, entre 'Precios' y 'Usuarios'; AdminLayout.test.tsx pasa de seis a siete secciones y sigue vigilando que no haya items deshabilitados de tipo 'proximamente' (feature 18)",
+        "Nueva ruta /admin/complementos en AppRoutes.tsx, con lazy() y <AdminPage>, mismo molde que 'prices'",
+        "Todo el acceso a red vive en src/lib/api.ts, nunca un fetch en el componente: tipos AdminComplemento y AdminPaquete, ComplementosListResponse, ComplementoInput y ComplementoPatchInput, mas listComplementos / getAdminComplemento / createAdminComplemento / updateAdminComplemento / deleteAdminComplemento",
+        "El LISTADO sale del endpoint PUBLICO GET /api/complementos con publicJson (sin cookie): NO existe GET /api/admin/complementos. El detalle y las tres escrituras usan /api/admin/complementos[/:id] con apiJson. El DELETE responde 204 sin cuerpo y se sintetiza { ok: true } solo si la respuesta fue 2xx, mismo molde que deleteAdminPlan",
+        "El id se trata como string (BIGSERIAL sin castear), igual que en planes, imagenes y usuarios",
+        "precio del complemento es number | null y null NO es 0: null significa 'no publica precio unitario porque sus paquetes lo llevan'. La lista pinta los paquetes o un guion, nunca '$null' ni '$0'; en el formulario, dejar el campo vacio manda null (que borra el valor en el PATCH) y no 0",
+        "unidad viaja aparte del precio y puede ser null. La API devuelve precio: 0.2 + unidad: '/ credito'; el simbolo $ y el formato los pone el front reutilizando formatMoneda, no el backend",
+        "paquetes siempre viene presente ([] si no hay), asi que se recorre sin guardas. En esta feature se listan de SOLO LECTURA dentro de cada complemento; ningun boton de crear/editar/borrar paquete (feature 38)",
+        "El borrado pide confirmacion explicita que MENCIONA la cascada y cuantos paquetes se llevan por delante ('se eliminaran tambien sus N paquetes'), porque el backend borra en cascada sin aviso y sin vuelta atras. Mismo molde de confirmDelete que PricesList.tsx:80",
+        "Los limites del backend se replican como constantes exportadas y se aplican en el formulario: nombre obligatorio y <=120, descripcion <=500 o null, unidad <=60 o null, precio en [0, 99999999.99] o null, orden entero en [0, 2147483647] con default 0",
+        "Los 422 traen field y marcan el input concreto (nombre, precio, ...) reutilizando el patron FIELD_BY_BACKEND de la feature 34; el error del listado lleva role='alert' (no se repite la omision de UsersList.tsx:118)",
+        "Los campos de texto se mandan como string de verdad o null: el backend ya no coerciona y {'nombre': 123} es 422",
+        "No se crea ningun mock*.ts nuevo; las fixtures viven solo en los tests",
+        "Tests con vi.spyOn(globalThis,'fetch') y Response reales: el listado pega al endpoint publico y las escrituras al de admin, un complemento con precio null pinta sus paquetes y no una cifra, cancelar la confirmacion no borra, y un 422 con field marca el input culpable",
+        "docs/api-contract.md gana la seccion de complementos en la zona de endpoints VIGENTES, con el mismo formato que el §4 quater de precios"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/AppRoutes.tsx",
+        "src/admin/AdminLayout.tsx",
+        "src/admin/addons/ComplementosList.tsx",
+        "src/admin/addons/ComplementoEditDialog.tsx",
+        "src/admin/__tests__/ComplementosList.test.tsx",
+        "src/admin/__tests__/AdminLayout.test.tsx",
+        "src/lib/__tests__/api.test.ts",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        31
+      ]
+    },
+    {
+      "id": 38,
+      "name": "Editar los paquetes de cada complemento contra /api/admin/paquetes",
+      "status": "pending",
+      "priority": "media",
+      "description": "Segunda mitad del CRUD de add-ons: los paquetes (Pack S/M/L) pasan de solo lectura a editables desde la pantalla de complementos que deja la feature 37. Es un recurso aparte en el panel pero SIN listado propio: no hay endpoint publico de paquetes, vienen anidados en GET /api/complementos y ahi se recargan tras cada escritura.",
+      "acceptance": [
+        "Helpers nuevos en src/lib/api.ts: getAdminPaquete, createAdminPaquete, updateAdminPaquete y deleteAdminPaquete sobre /api/admin/paquetes[/:id], con el DELETE en 204 sintetizando { ok: true }. NO se anade un listPaquetes: no existe ese endpoint y los paquetes salen anidados de listComplementos()",
+        "PaqueteInput tipa precio como number OBLIGATORIO (nunca null, a diferencia del complemento) y exige complemento_id; no tiene campo unidad. Mandar null en precio debe ser error de compilacion, no un 422 en runtime",
+        "Tras crear, editar o borrar un paquete se recarga el complemento afectado (o el listado) para que los paquetes anidados no queden desincronizados con el servidor",
+        "Se puede reasignar un paquete a otro complemento cambiando complemento_id, que el backend admite. Si el implementer decide no exponerlo en la UI, lo justifica en progress/current.md en vez de dejarlo sin explicar",
+        "Borrar un paquete NO toca su complemento: la confirmacion de borrado de paquete NO menciona cascada (la cascada es solo al reves y ya la cubre la feature 37)",
+        "Un PATCH vacio o que solo traiga campos no editables responde 422 y no modifica nada: el formulario no envia cuando no hay cambios",
+        "Un complemento_id inexistente, no numerico o desbordado responde 422 con field: 'complemento_id' y marca ese control; un :id que no existe es siempre 404 y se muestra como tal",
+        "Tests con vi.spyOn(globalThis,'fetch') y Response reales: alta de paquete manda complemento_id y precio, el borrado de un paquete no dispara ningun DELETE de complemento, y tras una escritura se vuelve a pedir el listado",
+        "docs/api-contract.md documenta paquetes junto a complementos, dejando escrito que no hay endpoint publico y que el borrado del complemento arrastra los paquetes"
+      ],
+      "files": [
+        "src/lib/api.ts",
+        "src/admin/addons/ComplementosList.tsx",
+        "src/admin/addons/PaqueteEditDialog.tsx",
+        "src/admin/__tests__/ComplementosList.test.tsx",
+        "src/lib/__tests__/api.test.ts",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        37
       ]
     }
   ]

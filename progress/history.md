@@ -2411,3 +2411,138 @@ desaparece no arrastra a quien la renderice, al revés que la 35. Medido tres ve
   **sí es significativa** porque el backend tiene las cuatro imágenes cargadas:
   mirar que el marco del Hero no parpadee al llegar la respuesta y que el CTA no
   cambie de alto.
+
+---
+
+## 2026-08-09 — Feature 37: Vista admin de complementos (add-ons) cableada a `/api/complementos` y `/api/admin/complementos`
+
+**Estado final:** done (`APPROVED` en `progress/review_37.md`, C1-C11 en `[x]`,
+sin observaciones bloqueantes; el reviewer reejecutó la verificación por su
+cuenta y reprodujo con mutación los cuatro puntos críticos que se le pidió
+comprobar, revirtiéndolos después)
+**Rama / commit:** `feat/37-admin-complementos` · (sin commitear)
+
+**Qué se hizo:**
+
+- `src/lib/api.ts` gana el bloque `// --- Complementos / add-ons (feature 37)
+  ---`: tipos `AdminPaquete` (paquete anidado, solo lectura aquí; `precio:
+  number` obligatorio, nunca `null`, a diferencia del complemento),
+  `AdminComplemento` (`id`, `nombre`, `descripcion`, `precio: number | null`,
+  `unidad`, `orden`, `paquetes: AdminPaquete[]` siempre presente),
+  `ComplementosListResponse`, `ComplementoInput` (derivado con
+  `Pick<'nombre'> & Partial<Pick<'descripcion'|'precio'|'unidad'|'orden'>>` en
+  vez de `Omit` porque aquí solo un campo es obligatorio) y
+  `ComplementoPatchInput`. Cinco helpers: `listComplementos()` público vía
+  `publicJson('/api/complementos')` (no existe `GET
+  /api/admin/complementos`, misma asimetría que precios), y
+  `getAdminComplemento`/`createAdminComplemento`/`updateAdminComplemento`/
+  `deleteAdminComplemento` privados vía `apiJson`. `deleteAdminComplemento`
+  sintetiza `{ ok: true }` del `204` sin cuerpo solo si la respuesta fue 2xx,
+  mismo molde que `deleteAdminPlan`. Constantes de límites exportadas
+  (`COMPLEMENTO_NOMBRE_MAX`, `COMPLEMENTO_DESCRIPCION_MAX`,
+  `COMPLEMENTO_UNIDAD_MAX`, `COMPLEMENTO_PRECIO_MAX`,
+  `COMPLEMENTO_ORDEN_MAX`).
+- `src/admin/AdminLayout.tsx`: entrada "Complementos" en `NAV_ITEMS`, entre
+  "Precios" y "Usuarios". `src/AppRoutes.tsx`: ruta `/admin/complementos` con
+  `lazy()` + `<AdminPage>`, mismo molde que `prices`.
+- Nuevos `src/admin/addons/ComplementosList.tsx` (listado con columnas Orden /
+  Complemento / Precio / Paquetes / Acciones, y confirmación de borrado que
+  menciona la cascada con el número exacto de paquetes afectados, o aclara que
+  no tiene ninguno) y `ComplementoEditDialog.tsx` (alta/edición, calcando
+  `PlanEditDialog.tsx` pero sin campos derivados). Un campo vacío de
+  `precio`/`descripcion`/`unidad` manda `null`, nunca `0` ni `''`.
+  `FIELD_BY_BACKEND` mapea los cinco campos editables porque los cinco tienen
+  `TextField` con `helperText` (a diferencia de precios, aquí no hay ningún
+  `Switch` sin slot de error). Los paquetes se listan siempre (`[]` si no hay,
+  recorridos sin guardas) y de **solo lectura**: ningún botón de crear/editar/
+  borrar paquete (eso es la feature 38).
+- Nuevo `src/admin/__tests__/ComplementosList.test.tsx` (18 tests, molde de
+  `PricesList.test.tsx`, `fetch` real con `vi.spyOn`): listado público, un
+  complemento con `precio: null` pintando sus paquetes y no una cifra (nunca
+  `$null` ni `$0`), estado de error con `role="alert"`, estado vacío, alta con
+  precio vacío → `null`, validación cliente sin `nombre`, edición con `PATCH`,
+  vaciar el precio → `null`, aviso de paquetes en el diálogo, `422` con
+  `field` marcando el input, `403 forbidden` traducido, confirmación de
+  borrado con conteo de paquetes (con y sin paquetes), `DELETE` con `204`
+  como éxito, error sin cuerpo no confundido con `204`, cancelar no borra,
+  permisos de `editor` (solo lectura). `src/lib/__tests__/api.test.ts` gana un
+  bloque de tests directos (`listComplementos`, `getAdminComplemento`,
+  `deleteAdminComplemento`). `src/admin/__tests__/AdminLayout.test.tsx` pasa
+  de seis a siete secciones, con "Complementos" entre "Precios" y "Usuarios".
+- `docs/api-contract.md` gana la sección **"4 quinquies. Complementos"** en la
+  zona de endpoints VIGENTES, mismo formato que §4 quater: tabla de rutas,
+  aviso de la asimetría del listado, tipos, la regla `precio: null` ≠ `precio:
+  0`, límites y normalización, tabla de errores, aviso de la cascada al
+  borrar, nota de que los paquetes son de solo lectura aquí (CRUD propio en la
+  38) y recordatorio de que `Addons.tsx` sigue sin cablear. Informe en
+  `progress/impl_37.md`; review en `progress/review_37.md`.
+
+**Decisiones:**
+
+- **`ComplementoInput` se deriva con `Pick`+`Partial`, no con `Omit` como
+  `PlanInput`.** En precios la mayoría de campos son obligatorios y solo dos
+  son opcionales, así que `Omit` + `Partial<Pick<...>>` encaja. En
+  complementos es al revés — solo `nombre` es obligatorio — así que
+  `Pick<'nombre'> & Partial<Pick<resto>>` expresa la misma idea con menos
+  ruido, siguiendo derivando de `AdminComplemento` en vez de duplicar tipos.
+- **Se reutilizaron `ORDEN_ERROR` y `parseOrden`** (ya exportados desde el
+  bloque de imágenes) en vez de duplicarlos para complementos; se añadió solo
+  el límite superior específico (`COMPLEMENTO_ORDEN_MAX`) como comprobación
+  extra en el formulario, con el mismo mensaje.
+- **"Precio" y "Paquetes" son dos columnas separadas** en la tabla, no una
+  celda condicional fusionada: el guion de "sin precio unitario" es siempre
+  visible en su propia columna y los paquetes se listan siempre, con o sin
+  precio propio, sin que el lector tenga que inferir de un layout condicional
+  dónde está la información.
+- **La celda de precio con unidad lleva un espacio** (`$0.2 / crédito`, no
+  `$0.2/ crédito`): decisión cosmética menor, sin impacto en el contrato ni en
+  las aserciones sobre `fetch.mock.calls`.
+- **No se creó ningún `mockComplementos.ts`.** Las fixtures viven solo dentro
+  de `ComplementosList.test.tsx` y `api.test.ts`, tal como exige el
+  acceptance explícitamente (no se repite el ciclo maqueta+cableado de las
+  features 27-34, porque el endpoint ya existía).
+- No se tocó `src/components/sections/Addons.tsx` (sigue hardcodeado, fuera
+  de alcance), ni nada de `/api/admin/paquetes` (feature 38), ni
+  infraestructura (`package.json`, `vite.config.ts`, `tsconfig.json`,
+  `vercel.json`, `.gitignore`). Ningún `.env*` leído ni escrito.
+
+**Verificación:** `npm test` **21 archivos / 217 tests** (baseline 20/194 +1
+archivo + 23 tests netos: 18 en `ComplementosList.test.tsx` + 5 en
+`api.test.ts`), exit 0 · `npm run typecheck` exit 0 · `npm run build` exit 0
+(aviso esperado de chunk >500 kB; `ComplementosList-CFWKMhJP.js`: 8.61 kB en
+su propio chunk lazy). Ningún test previo roto. Reejecutada de forma
+independiente por el reviewer, que además reprodujo con mutación los cuatro
+puntos críticos del contrato: `precio` vacío → `0` en vez de `null` (2 tests
+rojos), listado por `/api/admin/complementos` en vez del público (18 tests
+rojos), quitar el conteo de paquetes del aviso de cascada (1 test rojo), y
+confirmó por ausencia estructural (`grep`) que no hay ninguna llamada ni
+control de `/api/admin/paquetes`. Las tres mutaciones se revirtieron byte a
+byte y el bloque completo volvió a dar 21/217 exit 0.
+
+**Pendiente:**
+
+- **Observación menor no bloqueante del reviewer**:
+  `src/admin/addons/ComplementoEditDialog.tsx:200` dice que los paquetes de un
+  complemento "se editan desde su propia pantalla, no aquí", pero esa
+  pantalla (feature 38) todavía no existe. No viola ningún acceptance ni
+  checkpoint, pero conviene ajustar el copy al implementar la 38 para no
+  dejar una referencia a una pantalla inexistente.
+- La edición de paquetes contra `/api/admin/paquetes` es la **feature 38**,
+  única `pending` que queda en el backlog, en la misma rama
+  `feat/37-admin-complementos`.
+- Migrar `src/components/sections/Addons.tsx` para que consuma `GET
+  /api/complementos` (equivalente a lo que la feature 35 hizo con precios) no
+  está en el backlog: requiere que se cree la feature si se quiere.
+- `getAdminComplemento` queda sin consumidor en la UI, mismo patrón heredado
+  que `getAdminPlan` (feature 34) y `getAdminUser` (feature 32).
+- Las tablas de `complementos` siguen vacías en el backend
+  (`GET /api/complementos` → `{"rows":[]}`); hay que cargarlos desde este
+  panel nuevo antes de que la landing pueda mostrarlos (y aún haría falta
+  cablear `Addons.tsx`).
+- El resto de deuda heredada y sin arreglar (drift documental de
+  `docs/verification.md`/`docs/architecture.md`, `tsconfig.tsbuildinfo`
+  trackeado, el hallazgo del marco vacío del Hero con el backend dormido, el
+  flake de la suite bajo carga de CPU, etc.) sigue igual que en el cierre
+  anterior; detalle en las entradas de las features 27-36 de este mismo
+  archivo.
+

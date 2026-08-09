@@ -743,3 +743,126 @@ export async function deleteAdminPlan(id: string | number): Promise<ApiResult<{ 
   const res = await apiJson<{ ok: true }>(`/api/admin/precios/${id}`, { method: 'DELETE' });
   return res.ok && res.data == null ? { ...res, data: { ok: true } } : res;
 }
+
+// --- Complementos / add-ons (feature 37) ---
+// Contrato en docs/api-contract.md §4 quinquies. Misma asimetría que precios:
+// **no existe `GET /api/admin/complementos`** (el listado del panel sale del
+// endpoint público `GET /api/complementos`, sin cookie), pero el detalle y las
+// tres escrituras sí son privadas, bajo `/api/admin/complementos[/:id]`.
+//
+// Los paquetes (Pack S/M/L) llegan **anidados** en cada complemento, siempre
+// presentes (`[]` si no hay). Aquí se modelan de solo lectura: su propio CRUD
+// (`/api/admin/paquetes`) es la feature 38.
+
+/**
+ * Paquete anidado dentro de un complemento, tal como lo expone la API. Solo
+ * lectura en esta feature: la edición contra `/api/admin/paquetes` es la
+ * feature 38.
+ *
+ * `id` y `complemento_id` son **string**: el backend devuelve el `BIGSERIAL`
+ * sin castear, igual que en planes, imágenes y usuarios. A diferencia del
+ * complemento que lo contiene, `precio` aquí **es obligatorio y nunca `null`**.
+ */
+export interface AdminPaquete {
+  id: string;
+  complemento_id: string;
+  nombre: string;
+  descripcion: string | null;
+  precio: number;
+  orden: number;
+}
+
+/**
+ * Objeto `complemento` tal como lo devuelve la API, con sus `paquetes` ya
+ * anidados.
+ *
+ * `precio: null` **no** es `precio: 0`: significa que este complemento no
+ * publica un precio unitario porque son sus paquetes los que lo llevan (caso
+ * real: «Packs de créditos»). `unidad` viaja aparte del precio y también puede
+ * ser `null`; el símbolo `$` y el formato los pone el front con `formatMoneda`,
+ * nunca el backend.
+ */
+export interface AdminComplemento {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  /** `null` = "sin precio unitario propio, lo llevan los paquetes". Nunca `0`. */
+  precio: number | null;
+  unidad: string | null;
+  orden: number;
+  /** Siempre presente, `[]` si no hay: se recorre sin guardas. */
+  paquetes: AdminPaquete[];
+}
+
+/** `GET /api/complementos` responde `{ rows }`, ordenado por `orden ASC`. */
+export interface ComplementosListResponse {
+  rows: AdminComplemento[];
+}
+
+/**
+ * Campos escribibles de un complemento. Solo `nombre` es obligatorio; el
+ * resto son opcionales y, salvo `orden`, admiten `null` explícito para borrar
+ * el valor guardado en un `PATCH` (`docs/api-contract.md` §4 quinquies).
+ * `paquetes` se omite a propósito: no se escribe desde este endpoint.
+ */
+export type ComplementoInput =
+  & Pick<AdminComplemento, 'nombre'>
+  & Partial<Pick<AdminComplemento, 'descripcion' | 'precio' | 'unidad' | 'orden'>>;
+
+/** Edición: todo opcional. Un `PATCH` sin ningún campo editable responde `422`. */
+export type ComplementoPatchInput = Partial<ComplementoInput>;
+
+/** Longitud máxima de `nombre` (el backend lo trunca a 120). */
+export const COMPLEMENTO_NOMBRE_MAX = 120;
+
+/** Longitud máxima de `descripcion` (el backend la trunca a 500). */
+export const COMPLEMENTO_DESCRIPCION_MAX = 500;
+
+/** Longitud máxima de `unidad` (el backend la trunca a 60). */
+export const COMPLEMENTO_UNIDAD_MAX = 60;
+
+/** Rango válido de `precio`: `NUMERIC(10,2)`, igual que en planes. */
+export const COMPLEMENTO_PRECIO_MAX = 99999999.99;
+
+/** Límite superior de `orden`: entero de 32 bits con signo. */
+export const COMPLEMENTO_ORDEN_MAX = 2147483647;
+
+/**
+ * Listado de complementos. Es el endpoint **público**: no existe
+ * `GET /api/admin/complementos` — el listado público ya devuelve todos, con
+ * sus paquetes, sin borradores ni add-ons ocultos. Lo consume el panel; la
+ * landing (`Addons.tsx`) sigue sin cablear, fuera del alcance de esta feature.
+ */
+export function listComplementos() {
+  return publicJson<ComplementosListResponse>('/api/complementos', { method: 'GET' });
+}
+
+/** Detalle: privado, solo rol `admin`. */
+export function getAdminComplemento(id: string | number) {
+  return apiJson<{ complemento: AdminComplemento }>(`/api/admin/complementos/${id}`, { method: 'GET' });
+}
+
+export function createAdminComplemento(payload: ComplementoInput) {
+  return apiJson<{ complemento: AdminComplemento }>('/api/admin/complementos', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAdminComplemento(id: string | number, patch: ComplementoPatchInput) {
+  return apiJson<{ complemento: AdminComplemento }>(`/api/admin/complementos/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+/**
+ * `DELETE` responde `204` sin cuerpo: mismo molde que `deleteAdminPlan`. Se
+ * sintetiza el `{ ok: true }` que el 204 no trae y **solo si la respuesta fue
+ * 2xx**. ⚠️ Borra el complemento **y sus paquetes en cascada**, sin aviso del
+ * backend y sin vuelta atrás — la UI debe confirmarlo explícitamente.
+ */
+export async function deleteAdminComplemento(id: string | number): Promise<ApiResult<{ ok: true }>> {
+  const res = await apiJson<{ ok: true }>(`/api/admin/complementos/${id}`, { method: 'DELETE' });
+  return res.ok && res.data == null ? { ...res, data: { ok: true } } : res;
+}

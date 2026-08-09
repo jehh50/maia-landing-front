@@ -4,12 +4,13 @@ import { logout, type AdminUser } from '../lib/api';
 import { tokens } from '../theme/tokens';
 
 const NAV_ITEMS = [
-  { to: '/admin',           label: 'Inicio',   end: true  },
-  { to: '/admin/leads',     label: 'Leads',    end: false },
-  { to: '/admin/articles',  label: 'Blog',     end: false },
-  { to: '/admin/images',    label: 'Imágenes', end: false },
-  { to: '/admin/prices',    label: 'Precios',  end: false },
-  { to: '/admin/users',     label: 'Usuarios', end: false },
+  { to: '/admin',              label: 'Inicio',       end: true  },
+  { to: '/admin/leads',        label: 'Leads',        end: false },
+  { to: '/admin/articles',     label: 'Blog',         end: false },
+  { to: '/admin/images',       label: 'Imágenes',     end: false },
+  { to: '/admin/prices',       label: 'Precios',      end: false },
+  { to: '/admin/complementos', label: 'Complementos', end: false },
+  { to: '/admin/users',        label: 'Usuarios',     end: false },
 ];
 
 interface Props {
@@ -19,8 +20,8 @@ interface Props {
 /**
  * Layout privado: sidebar minimal + `<Outlet />` para las páginas anidadas.
  * Todas las secciones de `NAV_ITEMS` están activas y enlazan a su ruta: primero
- * el contenido ("Inicio", "Leads", "Blog", "Imágenes", "Precios") y al final la
- * gestión de accesos ("Usuarios"). Nunca se añaden ítems deshabilitados de tipo
+ * el contenido ("Inicio", "Leads", "Blog", "Imágenes", "Precios", "Complementos")
+ * y al final la gestión de accesos ("Usuarios"). Nunca se añaden ítems deshabilitados de tipo
  * "próximamente": la feature 18 los eliminó y hay un test que lo vigila.
  */
 export default function AdminLayout({ user }: Props) {
