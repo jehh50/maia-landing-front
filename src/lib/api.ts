@@ -866,3 +866,70 @@ export async function deleteAdminComplemento(id: string | number): Promise<ApiRe
   const res = await apiJson<{ ok: true }>(`/api/admin/complementos/${id}`, { method: 'DELETE' });
   return res.ok && res.data == null ? { ...res, data: { ok: true } } : res;
 }
+
+// --- Paquetes (feature 38) ---
+// Contrato en docs/api-contract.md §4 quinquies (ampliada). Segunda mitad del
+// CRUD de add-ons: los paquetes son un recurso aparte en el panel, pero SIN
+// listado propio ni público (`API_READY.md`, actualizado 2026-08-09): no hay
+// `GET /api/paquetes` ni `GET /api/admin/paquetes` colectivo — viajan
+// anidados en cada complemento (`AdminComplemento.paquetes`) y el panel
+// recarga `listComplementos()` tras cada escritura para no quedarse
+// desincronizado. Detalle y las tres escrituras sí son privados, bajo
+// `/api/admin/paquetes[/:id]`, solo rol `admin`.
+
+/**
+ * Campos escribibles de un paquete. Tres asimetrías respecto a
+ * `ComplementoInput`, todas del contrato:
+ *
+ * - **`precio` es obligatorio y nunca `null`**, a diferencia del precio del
+ *   complemento. Se deriva con `Pick` en vez de `Partial<Pick>`, así que
+ *   mandar `precio: null` es un error de **compilación**, no un `422` de
+ *   runtime.
+ * - **`complemento_id` es obligatorio**: todo paquete cuelga de un
+ *   complemento. Un valor inexistente, no numérico o desbordado responde
+ *   `422 { field: 'complemento_id' }` — nunca un `500`.
+ * - **No hay campo `unidad`.**
+ */
+export type PaqueteInput =
+  & Pick<AdminPaquete, 'nombre' | 'complemento_id' | 'precio'>
+  & Partial<Pick<AdminPaquete, 'descripcion' | 'orden'>>;
+
+/** Edición: todo opcional. Un `PATCH` sin ningún campo editable responde `422`. */
+export type PaquetePatchInput = Partial<PaqueteInput>;
+
+/** Límites del backend, idénticos a los del complemento (`API_READY.md`: "el resto de campos son los mismos"). */
+export const PAQUETE_NOMBRE_MAX = 120;
+export const PAQUETE_DESCRIPCION_MAX = 500;
+export const PAQUETE_PRECIO_MAX = 99999999.99;
+export const PAQUETE_ORDEN_MAX = 2147483647;
+
+/** Detalle: privado, solo rol `admin`. Sin consumidor en la UI hoy, mismo patrón que `getAdminComplemento`. */
+export function getAdminPaquete(id: string | number) {
+  return apiJson<{ paquete: AdminPaquete }>(`/api/admin/paquetes/${id}`, { method: 'GET' });
+}
+
+export function createAdminPaquete(payload: PaqueteInput) {
+  return apiJson<{ paquete: AdminPaquete }>('/api/admin/paquetes', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Admite reasignar el paquete a otro complemento cambiando `complemento_id` (el backend lo acepta). */
+export function updateAdminPaquete(id: string | number, patch: PaquetePatchInput) {
+  return apiJson<{ paquete: AdminPaquete }>(`/api/admin/paquetes/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+/**
+ * `DELETE` responde `204` sin cuerpo: mismo molde que `deleteAdminComplemento`.
+ * Se sintetiza el `{ ok: true }` que el 204 no trae y **solo si la respuesta
+ * fue 2xx**. A diferencia de borrar un complemento, borrar un paquete **no**
+ * toca nada más: no hay cascada al revés.
+ */
+export async function deleteAdminPaquete(id: string | number): Promise<ApiResult<{ ok: true }>> {
+  const res = await apiJson<{ ok: true }>(`/api/admin/paquetes/${id}`, { method: 'DELETE' });
+  return res.ok && res.data == null ? { ...res, data: { ok: true } } : res;
+}

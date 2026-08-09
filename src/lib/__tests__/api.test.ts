@@ -3,13 +3,19 @@ import {
   normalizeApi,
   GENERIC_API_ERROR,
   createAdminArticle,
+  createAdminPaquete,
   deleteAdminComplemento,
+  deleteAdminPaquete,
   getAdminComplemento,
+  getAdminPaquete,
   listAdminLeads,
   listComplementos,
   listPublicArticles,
+  updateAdminPaquete,
   type AdminComplemento,
   type AdminLead,
+  type AdminPaquete,
+  type PaqueteInput,
 } from '../api';
 
 afterEach(() => vi.restoreAllMocks());
@@ -283,6 +289,102 @@ describe('deleteAdminComplemento', () => {
     mockFetch(new Response(null, { status: 500 }));
 
     const res = await deleteAdminComplemento('1');
+
+    expect(res.ok).toBe(false);
+    expect(res.data).toBeNull();
+  });
+});
+
+// --- Paquetes (feature 38) — recurso aparte, sin listado propio ---
+
+const paquete = (over: Partial<AdminPaquete> = {}): AdminPaquete => ({
+  id: '7',
+  complemento_id: '2',
+  nombre: 'Pack S',
+  descripcion: '500 créditos',
+  precio: 90,
+  orden: 1,
+  ...over,
+});
+
+describe('getAdminPaquete', () => {
+  it('el detalle es privado: GET /api/admin/paquetes/:id con cookie', async () => {
+    const spy = mockFetch(new Response(JSON.stringify({ paquete: paquete() }), { status: 200 }));
+
+    await getAdminPaquete('7');
+
+    const [url, init] = spy.mock.calls[0];
+    expect(String(url)).toBe('/api/admin/paquetes/7');
+    expect(init).toMatchObject({ method: 'GET', credentials: 'include' });
+  });
+});
+
+describe('createAdminPaquete', () => {
+  it('envía POST /api/admin/paquetes con complemento_id y precio, ambos obligatorios', async () => {
+    const spy = mockFetch(new Response(JSON.stringify({ paquete: paquete() }), { status: 201 }));
+
+    const payload: PaqueteInput = {
+      nombre: 'Pack S',
+      complemento_id: '2',
+      precio: 90,
+      descripcion: '500 créditos',
+      orden: 1,
+    };
+    const res = await createAdminPaquete(payload);
+
+    expect(res).toEqual({ ok: true, status: 201, data: { paquete: paquete() } });
+    const [url, init] = spy.mock.calls[0];
+    expect(String(url)).toBe('/api/admin/paquetes');
+    expect(init).toMatchObject({ method: 'POST', credentials: 'include' });
+    expect(JSON.parse(String(init?.body))).toEqual(payload);
+  });
+});
+
+describe('updateAdminPaquete', () => {
+  it('envía PATCH /api/admin/paquetes/:id, admitiendo reasignar complemento_id', async () => {
+    const reasignado = paquete({ complemento_id: '1' });
+    const spy = mockFetch(new Response(JSON.stringify({ paquete: reasignado }), { status: 200 }));
+
+    const res = await updateAdminPaquete('7', { complemento_id: '1' });
+
+    expect(res).toEqual({ ok: true, status: 200, data: { paquete: reasignado } });
+    const [url, init] = spy.mock.calls[0];
+    expect(String(url)).toBe('/api/admin/paquetes/7');
+    expect(init).toMatchObject({ method: 'PATCH', credentials: 'include' });
+    expect(JSON.parse(String(init?.body))).toEqual({ complemento_id: '1' });
+  });
+
+  it('un complemento_id inexistente responde 422 con field, nunca un 500', async () => {
+    mockFetch(new Response(
+      JSON.stringify({ error: 'complemento_id debe ser el id de un complemento existente', field: 'complemento_id' }),
+      { status: 422 },
+    ));
+
+    const res = await normalizeApi(updateAdminPaquete('7', { complemento_id: '999' }), 'paquete');
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('esperaba fallo');
+    expect(res.status).toBe(422);
+    expect(res.field).toBe('complemento_id');
+  });
+});
+
+describe('deleteAdminPaquete', () => {
+  it('sintetiza { ok: true } cuando la respuesta es 204 sin cuerpo', async () => {
+    const spy = mockFetch(new Response(null, { status: 204 }));
+
+    const res = await deleteAdminPaquete('7');
+
+    expect(res).toEqual({ ok: true, status: 204, data: { ok: true } });
+    const [url, init] = spy.mock.calls[0];
+    expect(String(url)).toBe('/api/admin/paquetes/7');
+    expect(init).toMatchObject({ method: 'DELETE', credentials: 'include' });
+  });
+
+  it('un error sin cuerpo NO se confunde con el 204: sigue siendo un fallo', async () => {
+    mockFetch(new Response(null, { status: 500 }));
+
+    const res = await deleteAdminPaquete('7');
 
     expect(res.ok).toBe(false);
     expect(res.data).toBeNull();

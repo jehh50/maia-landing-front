@@ -2546,3 +2546,148 @@ byte y el bloque completo volvió a dar 21/217 exit 0.
   anterior; detalle en las entradas de las features 27-36 de este mismo
   archivo.
 
+## 2026-08-09 — Feature 38: Editar los paquetes de cada complemento contra `/api/admin/paquetes`
+
+**Estado final:** done (`APPROVED` en `progress/review_38.md` tras una ronda de
+`CHANGES_REQUESTED`; C1-C11 en `[x]` en la re-revisión, sin observaciones
+bloqueantes; el reviewer reejecutó la verificación por su cuenta en ambas
+pasadas y reprodujo con mutación los puntos críticos que se le pidió
+comprobar, revirtiéndolos después)
+**Rama / commit:** `feat/37-admin-complementos` · (sin commitear, junto con la 37)
+
+**Qué se hizo:**
+
+- `src/lib/api.ts` gana el bloque `// --- Paquetes (feature 38) ---`:
+  `PaqueteInput` derivado con `Pick<AdminPaquete, 'nombre' | 'complemento_id' |
+  'precio'> & Partial<Pick<'descripcion' | 'orden'>>` — al usar `Pick` (no
+  `Partial<Pick>`) para `precio` y `complemento_id`, mandar `precio: null` o
+  construir el payload sin `complemento_id` **no compila**, cumpliendo el
+  acceptance de "error de compilación, no un 422 en runtime". Sin campo
+  `unidad`. `PaquetePatchInput`, constantes `PAQUETE_NOMBRE_MAX` (120),
+  `PAQUETE_DESCRIPCION_MAX` (500), `PAQUETE_PRECIO_MAX` (99999999.99),
+  `PAQUETE_ORDEN_MAX` (2147483647), y cuatro helpers:
+  `getAdminPaquete`/`createAdminPaquete`/`updateAdminPaquete` (admite
+  reasignar `complemento_id`)/`deleteAdminPaquete` (sintetiza `{ ok: true }`
+  del `204` sin cuerpo solo si la respuesta fue 2xx). **Sin `listPaquetes`**:
+  no existe ese endpoint, ni público ni de panel; los paquetes se leen
+  siempre anidados de `listComplementos()`.
+- Nuevo `src/admin/addons/PaqueteEditDialog.tsx`: alta/edición de un paquete
+  con `precio` obligatorio (campo vacío = error de cliente, nunca `null`),
+  selector `TextField select` "Complemento" (poblado con la lista que
+  `ComplementosList` ya tiene cargada) para reasignar el paquete a otro
+  add-on, y una guardia `dirty` — instantánea tomada al abrir comparada
+  contra el formulario actual — que deshabilita "Guardar cambios" y hace
+  early-return en `onSubmit` cuando no hay ningún cambio, para no mandar
+  nunca un `PATCH` vacío.
+- `src/admin/addons/ComplementosList.tsx`: la celda "Paquetes" pasa de una
+  lista de solo lectura a filas con `IconButton` editar/borrar por paquete
+  más un botón "Agregar paquete a `<complemento>`" por fila de complemento.
+  Nuevo `Dialog` de confirmación de borrado de paquete, separado del de
+  complemento y **sin mencionar cascada** (borrar un paquete no toca a su
+  complemento; la cascada es solo al revés, ya cubierta por la 37). Tras
+  crear/editar/borrar un paquete se recarga `listComplementos()` completo,
+  igual que ya hace la pantalla para las escrituras de complemento — no hay
+  endpoint para refrescar un solo complemento.
+- `src/admin/addons/ComplementoEditDialog.tsx`: corregido el copy y el
+  docstring que apuntaban a "su propia pantalla, no aquí" (observación menor
+  de la review de la 37): ahora dicen que los paquetes se editan desde la
+  fila del complemento en `ComplementosList`, no desde este formulario.
+- `docs/api-contract.md` §4 quinquies renombrada a "Complementos y paquetes":
+  sustituida la sección "Los paquetes son de solo lectura en esta feature"
+  por la documentación completa de `/api/admin/paquetes` (las 4 rutas,
+  `PaqueteInput`, las tres asimetrías respecto a `ComplementoInput`, la
+  reasignación de `complemento_id`, la guardia de "PATCH sin cambios" y la
+  tabla de errores).
+- Tests: `src/admin/__tests__/ComplementosList.test.tsx` extiende el mock de
+  `fetch` con `/api/admin/paquetes[/:id]` (`validarPaquete()` reproduce el
+  validador real) y gana 11 tests nuevos repartidos en `paquetes: alta`
+  (×2), `paquetes: edición` (×6, incluida la reasignación de
+  `complemento_id` y el test mutación-resistente de la ronda de arreglo) y
+  `paquetes: borrado` (×3); 2 tests existentes ajustados (la celda de
+  paquetes ahora incluye "Agregar paquete"; el test de permisos gana tres
+  aserciones sobre los controles de paquete ocultos a un `editor`). Total:
+  18 → 29 tests. `src/lib/__tests__/api.test.ts` gana 6 tests para los
+  cuatro helpers nuevos (18 → 24).
+
+**Decisiones:**
+
+- **Se expone la reasignación de `complemento_id` en la UI** (el acceptance
+  dejaba elegir): `ComplementosList` ya carga todos los complementos en
+  `rows`, así que pasárselos a `PaqueteEditDialog` para poblar el selector no
+  tiene coste adicional relevante, y el acceptance describe explícitamente
+  que el backend lo admite.
+- **La guardia de "PATCH sin cambios" se resuelve enteramente en cliente**
+  (deshabilitando el botón + early-return en `onSubmit`), no enviando un
+  `PATCH` parcial con solo los campos modificados: el formulario siempre
+  construye el `PaqueteInput` completo cuando sí hay cambios, así que la
+  única forma de garantizar "no se envía cuando no hay cambios" es no
+  disparar la petición en absoluto.
+- **Recarga completa (`listComplementos()`) tras cada escritura de
+  paquete**, no una recarga parcial de un complemento: no existe un
+  `GET /api/complementos/:id` público al que apuntar una recarga selectiva.
+- **Límites (`PAQUETE_*`) como constantes propias**, aunque coinciden en
+  valor con las del complemento, para mantener el patrón del repo de una
+  constante por recurso y no acoplar un recurso a los símbolos del otro.
+
+**Ciclo de revisión:**
+
+1. **Primera pasada — `CHANGES_REQUESTED` (C2, rechazo automático).** El
+   reviewer reprodujo con mutación los cinco puntos críticos del acceptance
+   (tipos obligatorios a nivel de compilación, `ComplementoInput` no
+   contaminado, ausencia de `listPaquetes` + recarga tras escritura, borrado
+   sin cascada, `PATCH` sin cambios) y encontró que el quinto no tenía
+   verificación mutación-resistente: quitando
+   `if (paquete && !dirty) return;` de `PaqueteEditDialog.tsx:142`, la suite
+   completa (28 tests) seguía en verde, porque el único test relacionado
+   comprobaba `disabled` + 0 escrituras **antes** de intentar ningún envío
+   — cierto con o sin la guardia. El botón deshabilitado no cubre un envío
+   implícito del `<form>` (Enter, `form.submit()`, tecnología de asistencia).
+2. **Arreglo — solo test, cero cambios en código de producción.** Nuevo test
+   que abre el diálogo de edición sin tocar ningún campo, obtiene el
+   `<form>` real del diálogo y dispara `fireEvent.submit(form)` directamente
+   — bypaseando el `disabled` del botón para ejercer la guardia real.
+   Verificado por el implementer, antes de entregarlo, mutando la guardia
+   (test se puso rojo), revirtiendo (`diff` sin diferencias) y confirmando
+   que volvía a verde.
+3. **Re-revisión — `APPROVED`.** El reviewer repitió él mismo la misma
+   mutación y obtuvo **1 rojo, exactamente el test nuevo**; los otros 28
+   siguieron verdes. Confirmó `diff` sin cambios en código de producción y
+   reejecutó el bloque completo.
+
+**Verificación:** `npm test` **21 archivos / 234 tests** (baseline 21/217 tras
+la 37: +10 en `ComplementosList.test.tsx` — 18→28 en la primera pasada, 28→29
+con el test de la ronda de arreglo — y +6 en `api.test.ts` — 18→24 —, ningún
+archivo nuevo), exit 0 · `npm run typecheck` exit 0 · `npm run build` exit 0
+(aviso esperado de chunk >500 kB; `ComplementosList-_c1FOlPt.js`: 13.99 kB en
+su propio chunk lazy). Ningún test previo roto. Reejecutada de forma
+independiente por el reviewer en ambas pasadas, sin flake, una sola suite a
+la vez.
+
+**Pendiente:**
+
+- **El CRUD de add-ons del panel queda completo** (37: complementos: alta,
+  edición, borrado con cascada explícita; 38: paquetes: alta, edición
+  —incluida reasignación de `complemento_id`—, borrado sin cascada). No
+  queda ninguna feature `pending`, `in_progress` ni `blocked` en
+  `feature_list.json`: las 22 features del backlog abierto (17-38) están
+  `done`.
+- **`src/components/sections/Addons.tsx` sigue con el array hardcodeado**
+  (líneas 20-56): migrarlo a `GET /api/complementos`, equivalente a lo que
+  la feature 35 hizo con precios, **no está en el backlog** — requiere que
+  lo pida un humano.
+- **`GET /api/complementos` sigue respondiendo `{"rows":[]}`**: hay que
+  cargar add-ons y paquetes desde el panel nuevo (`/admin/complementos`,
+  ya operativo) antes de que la landing pueda mostrarlos — mismo caso que
+  precios, que sigue igual de vacío.
+- **Nada de la 37 ni de la 38 está commiteado**: conviven sin commitear en
+  `feat/37-admin-complementos`, a la espera de que un humano decida cómo
+  commitearlas.
+- `getAdminPaquete` queda sin consumidor en la UI, mismo patrón heredado que
+  `getAdminComplemento` (feature 37), `getAdminPlan` (feature 34) y
+  `getAdminUser` (feature 32).
+- El resto de deuda heredada y sin arreglar (drift documental de
+  `docs/verification.md`/`docs/architecture.md`, `tsconfig.tsbuildinfo`
+  trackeado, el hallazgo del marco vacío del Hero con el backend dormido, el
+  error del listado de usuarios sin `role="alert"`, el flake de la suite
+  bajo carga de CPU, etc.) sigue igual que en el cierre anterior; detalle en
+  las entradas de las features 27-37 de este mismo archivo.

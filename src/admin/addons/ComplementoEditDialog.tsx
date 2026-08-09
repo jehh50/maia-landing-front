@@ -59,9 +59,9 @@ interface Props {
  *   `unidad` admiten `null` explícito, que en un `PATCH` **borra** el valor
  *   guardado. Dejar el precio en blanco es la forma correcta de decir «este
  *   complemento no publica precio unitario, lo llevan sus paquetes».
- * - **Los paquetes no se editan aquí.** Se administran desde su propia
- *   pantalla (feature 38, todavía sin implementar), no desde este
- *   formulario.
+ * - **Los paquetes no se editan aquí.** Se administran desde la fila de este
+ *   complemento en `ComplementosList` (feature 38: alta, edición y borrado
+ *   contra `/api/admin/paquetes`), no desde este formulario.
  */
 export default function ComplementoEditDialog({ complemento, open, onClose, onSaved }: Props) {
   const [nombre, setNombre]           = useState('');
@@ -198,8 +198,8 @@ export default function ComplementoEditDialog({ complemento, open, onClose, onSa
               <Alert severity="info">
                 Este complemento tiene {complemento.paquetes.length} paquete
                 {complemento.paquetes.length === 1 ? '' : 's'} asociado
-                {complemento.paquetes.length === 1 ? '' : 's'}. Se editan desde su
-                propia pantalla, no aquí.
+                {complemento.paquetes.length === 1 ? '' : 's'}. Se editan desde la fila de
+                este complemento en el listado, no en este formulario.
               </Alert>
             )}
 

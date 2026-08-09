@@ -9,12 +9,13 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import {
-  adminErrorMessage, deleteAdminComplemento, formatMoneda, listComplementos,
+  adminErrorMessage, deleteAdminComplemento, deleteAdminPaquete, formatMoneda, listComplementos,
   normalizeApi,
-  type AdminComplemento, type AdminUser,
+  type AdminComplemento, type AdminPaquete, type AdminUser,
 } from '../../lib/api';
 import { tokens } from '../../theme/tokens';
 import ComplementoEditDialog from './ComplementoEditDialog';
+import PaqueteEditDialog from './PaqueteEditDialog';
 
 /** Celda sin dato, con el mismo tratamiento que en `PricesList`. */
 function Guion() {
@@ -35,9 +36,13 @@ function Guion() {
  *   de precio nunca pinta `$0` en ese caso, y los paquetes se listan aparte,
  *   siempre presentes (`[]` si no hay), sin guardas.
  *
- * Los paquetes se muestran aquí de solo lectura: ningún botón de crear,
- * editar ni borrar paquete. Su propio CRUD contra `/api/admin/paquetes` es la
- * feature 38.
+ * Los paquetes se editan desde su propia fila, dentro de cada complemento
+ * (feature 38): alta, edición y borrado contra `/api/admin/paquetes`, con
+ * recarga de `listComplementos()` tras cada escritura para no quedarse
+ * desincronizado (no hay listado propio de paquetes al que refrescar solo esa
+ * fila). Borrar un paquete no toca a su complemento; borrar un complemento sí
+ * arrastra sus paquetes en cascada (feature 37) — dos confirmaciones
+ * separadas, cada una con su propio copy.
  */
 export default function ComplementosList() {
   const sessionUser = useOutletContext<AdminUser>();
@@ -51,6 +56,14 @@ export default function ComplementosList() {
   const [creating, setCreating] = useState(false);
   const [toDelete, setToDelete] = useState<AdminComplemento | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Paquetes: recurso aparte del complemento (feature 38), sin listado
+  // propio. `creatingPaqueteFor` guarda el complemento que abrió el alta
+  // (para preseleccionarlo en el formulario); `editingPaquete` es la edición.
+  const [editingPaquete, setEditingPaquete] = useState<AdminPaquete | null>(null);
+  const [creatingPaqueteFor, setCreatingPaqueteFor] = useState<AdminComplemento | null>(null);
+  const [paqueteToDelete, setPaqueteToDelete] = useState<AdminPaquete | null>(null);
+  const [deletingPaquete, setDeletingPaquete] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,6 +100,26 @@ export default function ComplementosList() {
     else setError(adminErrorMessage(res));
   };
 
+  const cerrarPaqueteDialogo = () => {
+    setEditingPaquete(null);
+    setCreatingPaqueteFor(null);
+  };
+
+  const onSavedPaquete = async () => {
+    cerrarPaqueteDialogo();
+    await load();
+  };
+
+  const confirmDeletePaquete = async () => {
+    if (!paqueteToDelete) return;
+    setDeletingPaquete(true);
+    const res = await normalizeApi(deleteAdminPaquete(paqueteToDelete.id), 'ok', 'No pudimos eliminar el paquete');
+    setDeletingPaquete(false);
+    setPaqueteToDelete(null);
+    if (res.ok) await load();
+    else setError(adminErrorMessage(res));
+  };
+
   return (
     <Box>
       <Box
@@ -110,7 +143,7 @@ export default function ComplementosList() {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 760 }}>
         Los add-ons que se ofrecen junto a los planes. Un complemento puede tener
         precio unitario propio, o dejarlo en blanco para que sean sus paquetes los
-        que lo lleven. Los paquetes se muestran aquí de solo lectura.
+        que lo lleven. Cada paquete se edita desde su propia fila.
       </Typography>
 
       {!puedeEditar && (
@@ -168,8 +201,8 @@ export default function ComplementosList() {
                     : <Guion />}
                 </TableCell>
 
-                {/* Siempre presente, `[]` si no hay: se recorre sin guardas. Solo lectura (feature 38). */}
-                <TableCell data-testid={`addon-${c.id}-paquetes`}>
+                {/* Siempre presente, `[]` si no hay: se recorre sin guardas. Editable (feature 38). */}
+                <TableCell data-testid={`addon-${c.id}-paquetes`} sx={{ minWidth: 260 }}>
                   {c.paquetes.length === 0 ? (
                     <Guion />
                   ) : (
@@ -178,12 +211,45 @@ export default function ComplementosList() {
                         <Box
                           component="li"
                           key={p.id}
-                          sx={{ fontSize: 13, color: 'text.secondary', py: 0.25 }}
+                          sx={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            gap: 1, fontSize: 13, color: 'text.secondary', py: 0.25,
+                          }}
                         >
-                          {p.nombre} — {formatMoneda(p.precio)}
+                          <span>{p.nombre} — {formatMoneda(p.precio)}</span>
+                          {puedeEditar && (
+                            <Stack direction="row" spacing={0}>
+                              <IconButton
+                                size="small"
+                                onClick={() => setEditingPaquete(p)}
+                                aria-label={`Editar paquete ${p.nombre}`}
+                              >
+                                <EditIcon sx={{ fontSize: 15 }} />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => setPaqueteToDelete(p)}
+                                aria-label={`Borrar paquete ${p.nombre}`}
+                              >
+                                <DeleteIcon sx={{ fontSize: 15 }} />
+                              </IconButton>
+                            </Stack>
+                          )}
                         </Box>
                       ))}
                     </Box>
+                  )}
+                  {puedeEditar && (
+                    <Button
+                      size="small"
+                      startIcon={<AddIcon fontSize="small" />}
+                      onClick={() => setCreatingPaqueteFor(c)}
+                      aria-label={`Agregar paquete a ${c.nombre}`}
+                      sx={{ mt: c.paquetes.length > 0 ? 0.5 : 0 }}
+                    >
+                      Agregar paquete
+                    </Button>
                   )}
                 </TableCell>
 
@@ -212,6 +278,15 @@ export default function ComplementosList() {
         onSaved={onSaved}
       />
 
+      <PaqueteEditDialog
+        paquete={editingPaquete}
+        complementoId={creatingPaqueteFor?.id ?? editingPaquete?.complemento_id ?? ''}
+        complementos={rows}
+        open={!!creatingPaqueteFor || !!editingPaquete}
+        onClose={cerrarPaqueteDialogo}
+        onSaved={onSavedPaquete}
+      />
+
       <Dialog open={!!toDelete} onClose={() => setToDelete(null)}>
         <DialogTitle>¿Borrar complemento?</DialogTitle>
         <DialogContent>
@@ -233,6 +308,24 @@ export default function ComplementosList() {
           <Button onClick={() => setToDelete(null)} disabled={deleting}>Cancelar</Button>
           <Button onClick={confirmDelete} color="error" variant="contained" disabled={deleting}>
             {deleting ? 'Borrando…' : 'Borrar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Borrar un paquete NO toca a su complemento: la cascada es solo al
+          revés (feature 37, diálogo de arriba), así que esta confirmación no
+          la menciona. */}
+      <Dialog open={!!paqueteToDelete} onClose={() => setPaqueteToDelete(null)}>
+        <DialogTitle>¿Borrar paquete?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Esta acción no se puede deshacer. Se eliminará «<b>{paqueteToDelete?.nombre}</b>».
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPaqueteToDelete(null)} disabled={deletingPaquete}>Cancelar</Button>
+          <Button onClick={confirmDeletePaquete} color="error" variant="contained" disabled={deletingPaquete}>
+            {deletingPaquete ? 'Borrando…' : 'Borrar'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -558,13 +558,13 @@ Dos detalles del mapeo que el contrato impone a esa sección:
   se muestra el mayor, y solo se afirma «Ahorra X%» a secas cuando todos los
   planes con precio comparten ese descuento. Los `es_custom` no cuentan.
 
-## 4 quinquies. Complementos (`/api/complementos` + `/api/admin/complementos`) — **vigente**
+## 4 quinquies. Complementos y paquetes (`/api/complementos` + `/api/admin/complementos` + `/api/admin/paquetes`) — **vigente**
 
-Consumido desde la **feature 37** (panel). Contrato del backend en
-`API_READY.md` (actualizado el 2026-08-09). Tabla `complementos`, con sus
-paquetes (tabla `paquetes`) **anidados** en la misma respuesta, de **solo
-lectura** en esta feature (su propio CRUD contra `/api/admin/paquetes` es la
-feature 38). El objeto `complemento` tiene **exactamente estos 6 campos**:
+Complementos consumidos desde la **feature 37** (panel), paquetes desde la
+**feature 38**. Contrato del backend en `API_READY.md` (actualizado el
+2026-08-09). Tabla `complementos`, con sus paquetes (tabla `paquetes`)
+**anidados** en la misma respuesta. El objeto `complemento` tiene
+**exactamente estos 6 campos**:
 
 ```
 id, nombre, descripcion, precio, unidad, orden, paquetes
@@ -592,7 +592,6 @@ id, nombre, descripcion, precio, unidad, orden, paquetes
 > exige rol `admin`.
 
 ```ts
-// Solo lectura en esta feature: la edición contra `/api/admin/paquetes` es la feature 38.
 interface AdminPaquete {
   id: string;                 // BIGSERIAL sin castear
   complemento_id: string;
@@ -667,20 +666,88 @@ quater, asimetría 3 de §4 bis).
 
 > ⚠️ **Borrar un complemento borra sus paquetes en cascada, sin aviso del
 > backend y sin vuelta atrás.** `DELETE /api/admin/complementos/2` se lleva
-> por delante todos sus paquetes. El panel pide confirmación explícita que
-> menciona la cascada y cuántos paquetes se llevan por delante.
+> por delante todos sus paquetes. Al revés no pasa: borrar un paquete no toca
+> su complemento (detalle de paquetes en la feature 38). El panel pide
+> confirmación explícita que menciona la cascada y cuántos paquetes se llevan
+> por delante.
 
-> ℹ️ **Los paquetes son de solo lectura en esta feature.** Se listan
-> anidados en cada complemento, siempre presentes (`[]` si no hay), sin
-> guardas. Su propio CRUD contra `/api/admin/paquetes` (alta, edición y
-> borrado) es la **feature 38**: hoy el panel no ofrece ningún botón de
-> crear, editar ni borrar un paquete.
+### Paquetes (`/api/admin/paquetes`) — feature 38
+
+`paquetes` viaja anidado en cada complemento (`GET /api/complementos`), pero
+su alta, edición y borrado son un recurso propio, **sin ningún listado, ni
+público ni de panel**: no existe `GET /api/paquetes` ni un
+`GET /api/admin/paquetes` colectivo. La única forma de leerlos es dentro de
+`AdminComplemento.paquetes`, así que el panel recarga `listComplementos()`
+tras cada escritura de paquete para no quedarse desincronizado.
+
+| Método | Ruta | Helper | Auth | OK |
+|---|---|---|---|---|
+| `GET` | `/api/admin/paquetes/:id` | `getAdminPaquete(id)` | cookie, **solo `admin`** | `200 { paquete }` |
+| `POST` | `/api/admin/paquetes` | `createAdminPaquete(input)` | cookie, **solo `admin`** | `201 { paquete }` |
+| `PATCH` | `/api/admin/paquetes/:id` | `updateAdminPaquete(id, patch)` | cookie, **solo `admin`** | `200 { paquete }` |
+| `DELETE` | `/api/admin/paquetes/:id` | `deleteAdminPaquete(id)` | cookie, **solo `admin`** | `204` **sin cuerpo** |
+| ~~`GET`~~ | ~~`/api/admin/paquetes`~~ / ~~`/api/paquetes`~~ | — | — | **NO EXISTEN** |
+
+```ts
+// Campos escribibles = los que admite POST/PATCH del backend.
+type PaqueteInput =
+  & Pick<AdminPaquete, 'nombre' | 'complemento_id' | 'precio'>
+  & Partial<Pick<AdminPaquete, 'descripcion' | 'orden'>>;
+
+type PaquetePatchInput = Partial<PaqueteInput>;
+```
+
+Tres asimetrías respecto a `ComplementoInput`, todas del contrato
+(`API_READY.md`, sección "Panel de add-ons: complementos y paquetes"):
+
+1. **`precio` es obligatorio y nunca `null`.** A diferencia del precio del
+   complemento (donde `null` es "sin precio unitario propio"), un paquete
+   siempre lo lleva. `PaqueteInput` lo deriva con `Pick` (no
+   `Partial<Pick>`), así que mandar `precio: null` **no compila** — no hace
+   falta esperar a un `422` en runtime para detectarlo.
+2. **`complemento_id` es obligatorio.** Todo paquete cuelga de un
+   complemento. Un valor inexistente, no numérico o desbordado responde
+   `422 { error: "complemento_id debe ser el id de un complemento existente", field: 'complemento_id' }`
+   — **nunca un `500`**. Un `:id` de paquete que no existe (en cualquiera de
+   las cuatro rutas) es siempre `404 { error: 'Paquete no encontrado' }`.
+3. **No hay campo `unidad`.** El resto de límites son los mismos que en el
+   complemento (`nombre` obligatorio y ≤120, `descripcion` ≤500 o `null`,
+   `precio` en `[0, 99999999.99]`, `orden` entero en `[0, 2147483647]` con
+   default `0`), replicados en el front como `PAQUETE_NOMBRE_MAX`,
+   `PAQUETE_DESCRIPCION_MAX`, `PAQUETE_PRECIO_MAX` y `PAQUETE_ORDEN_MAX`.
+
+**Reasignar un paquete a otro complemento es válido.** `PATCH { complemento_id }`
+mueve el paquete de un add-on a otro; el panel lo expone con un selector
+"Complemento" en el formulario de edición (`PaqueteEditDialog.tsx`), reutilizando
+los complementos ya cargados por `listComplementos()`.
+
+**Un `PATCH` vacío, o que solo traiga campos no editables, responde `422` y no
+modifica nada** — igual que en el complemento. El formulario del panel evita
+mandarlo: compara los valores actuales contra los del paquete abierto y
+deshabilita "Guardar cambios" si no hay ninguna diferencia.
+
+**Borrar un paquete NO toca a su complemento.** Al revés sí: borrar un
+complemento arrastra sus paquetes en cascada (§ arriba). Son dos
+confirmaciones distintas en el panel, y la del paquete no menciona ninguna
+cascada porque no la hay.
+
+El `DELETE` responde `204` sin cuerpo, así que `deleteAdminPaquete` sintetiza
+el `{ ok: true }` con el mismo molde que `deleteAdminComplemento`.
+
+Errores:
+
+| Status | Body | Nota |
+|---|---|---|
+| `422` | `{ error, field }` con `field` en `nombre` \| `precio` \| `complemento_id` \| `orden` | `descripcion` se trunca, no se rechaza por longitud |
+| `422` | `{ error: 'Nada que actualizar: se esperaba …' }` | `PATCH` sin ningún campo editable; sin `field` |
+| `404` | `{ error: 'Paquete no encontrado' }` | también con un `:id` no numérico o desbordado |
+| `403` | `{ ok: false, error: 'forbidden', message }` | forma anómala, §10.1 → `adminErrorMessage` |
 
 ⚠️ **Las tablas están creadas pero VACÍAS y no hay seed**: `GET /api/complementos`
 responde `200 { "rows": [] }` hasta que se carguen complementos **desde el
 panel**. `src/components/sections/Addons.tsx` sigue con su array hardcodeado
 (líneas 20-56): migrarlo a este endpoint, igual que la feature 35 hizo con
-precios, **no está en el backlog** — es fuera de alcance de esta feature.
+precios, **no está en el backlog** — es fuera de alcance de la 37 y la 38.
 
 ## 5. Admin — artículos (`/api/admin/articles`)
 

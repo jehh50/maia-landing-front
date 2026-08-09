@@ -487,7 +487,7 @@
     {
       "id": 38,
       "name": "Editar los paquetes de cada complemento contra /api/admin/paquetes",
-      "status": "pending",
+      "status": "done",
       "priority": "media",
       "description": "Segunda mitad del CRUD de add-ons: los paquetes (Pack S/M/L) pasan de solo lectura a editables desde la pantalla de complementos que deja la feature 37. Es un recurso aparte en el panel pero SIN listado propio: no hay endpoint publico de paquetes, vienen anidados en GET /api/complementos y ahi se recargan tras cada escritura.",
       "acceptance": [
