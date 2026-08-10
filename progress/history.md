@@ -2691,3 +2691,139 @@ la vez.
   error del listado de usuarios sin `role="alert"`, el flake de la suite
   bajo carga de CPU, etc.) sigue igual que en el cierre anterior; detalle en
   las entradas de las features 27-37 de este mismo archivo.
+
+---
+
+## 2026-08-09 — Bitácora de restauración de la feature 38 (git, no producto)
+
+**Estado final:** done (tarea de git, no de producto)
+**Rama / commit:** `feat/37-admin-complementos` · `c6a23b6`, `9cf8991`, `991a1c4`
+
+**Qué se hizo:**
+
+- Restaurada la feature 38 (aprobada por el reviewer en `tmp/addons-snapshot`,
+  `1bc3dc5`) sobre `feat/37-admin-complementos`, que solo tenía commiteada la
+  feature 37. Restaurado con `git checkout tmp/addons-snapshot -- <rutas>`
+  (sin reescribir código a mano) y commiteado.
+
+**Decisiones:**
+
+- Hashes finales de la rama `feat/37-admin-complementos`: `c6a23b6`
+  (`feat(admin): añade el panel de complementos del CRUD de add-ons`, feature
+  37), `9cf8991` (`docs(api): recoge el handoff del backend con el CRUD de
+  add-ons`), `991a1c4` (`feat(admin): hace editables los paquetes de cada
+  complemento`, feature 38).
+- Comprobación final `git diff tmp/addons-snapshot feat/37-admin-complementos`
+  → **vacío**: la rama quedó byte a byte el estado 37+38 verificado y
+  aprobado por el reviewer. Rama temporal `tmp/addons-snapshot` borrada tras
+  confirmar el diff vacío.
+- `tsconfig.tsbuildinfo` quedó fuera del commit (no trackeable según
+  `docs/conventions.md` §8), modificado en el working tree.
+
+**Verificación:** `npm test` **21 archivos / 234 tests**, exit 0 ·
+`npm run typecheck` exit 0 · `npm run build` exit 0 (aviso esperado de chunk
+>500 kB). Cada comando ejecutado por separado, sin flake.
+
+**Pendiente:** ninguno propio de esta tarea de git; el trabajo de producto
+sigue en la feature 38 ya cerrada.
+
+---
+
+## 2026-08-09 — Feature 39: La sección de add-ons de la landing consume `/api/complementos`
+
+**Estado final:** done (`APPROVED` en `progress/review_39.md`, sin ninguna
+ronda de `CHANGES_REQUESTED`; C1-C11 en `[x]`, verificación por mutación de
+los cinco puntos críticos reproducida por el reviewer)
+**Rama / commit:** `feat/39-addons-api` (apilada sobre
+`feat/37-admin-complementos`) · sin commitear
+
+**Qué se hizo:**
+
+- `src/components/sections/Addons.tsx` reescrito por completo: consume
+  `GET /api/complementos` vía `listComplementos()` + `normalizeApi(…, 'rows')`
+  (helper ya existente desde la feature 37), con la misma máquina de estados
+  `loading/ok/error` y el mismo fallback de "sin datos no hay sección" que la
+  feature 35 dejó en `Pricing.tsx`. El array `addons` hard-codeado
+  (líneas 20-56) se eliminó sin dejar respaldo.
+- Icono y color de acento resueltos con una tabla fija `ESTILO_POR_POSICION`
+  (los mismos cuatro pares que llevaba el array eliminado), indexada por
+  `i % length` sobre la fila ya ordenada por `orden` del backend — nunca por
+  `nombre`. `precio: null` pinta los `paquetes` anidados (nunca `$null`/`$0`);
+  `key={c.id}` (string), no `nombre`.
+- Nuevo `src/components/sections/__tests__/Addons.test.tsx` (12 tests, molde
+  `Pricing.test.tsx`): petición pública sin cookie, pintado de tarjetas,
+  decimales preservados, `precio: null` con y sin paquetes, icono/color por
+  posición (ciclo al 5º complemento y resistencia a un mapeo por `nombre`),
+  los tres casos de fallback (`rows` vacío, `500`, fallo de red — este último
+  con verificación explícita de que no reaparece el array hard-codeado) y
+  `200` sin `rows`, y carga sin parpadeo.
+- `docs/api-contract.md` §4 quinquies gana la subsección "Qué hace la landing
+  con estos datos (feature 39, 2026-08-09)", mismo formato que la nota de la
+  35 en §4 quater (precios) y la 36 en §4 ter (imágenes).
+
+**Decisiones:**
+
+- **No se tocó `formatMoneda` de `src/lib/api.ts`** para resolver la
+  regresión de decimales (`formatMoneda(0.2)` → `"$0.2"`, la landing debía
+  seguir mostrando `"$0.20"`). El helper compartido lo consume también
+  `ComplementosList.tsx` (feature 37, `done`), cuyo test
+  (`src/admin/__tests__/ComplementosList.test.tsx:299` y `:566`) fija
+  literalmente `'$0.2 / crédito'` — cambiarlo habría roto un test de otra
+  feature ya aprobada, fuera del `acceptance` de la 39. `Addons.tsx` define en
+  su lugar un formateador **local y privado** (`formatImporte`) que añade dos
+  decimales solo cuando el importe no es entero. El mismo defecto sigue vivo
+  en el panel, documentado como deuda fuera de scope.
+- El implementer verificó manualmente el mecanismo anti-regresión antes de
+  entregar: reintrodujo el array hard-codeado dentro de la rama de fallback,
+  confirmó que el test correspondiente se ponía rojo, y revirtió el archivo
+  (`diff` contra un backup, vacío).
+- El reviewer repitió la verificación por mutación sobre los cinco puntos
+  críticos del acceptance (respaldo hard-codeado, decimales, mapeo por
+  nombre, `precio: null` tratado como `0`, parpadeo con un estado de carga
+  visible) — las cinco mutaciones pusieron la suite en rojo (3, 1, 2, 2 y 4
+  tests respectivamente) y el árbol quedó restaurado byte a byte tras cada
+  una.
+- Verificación visual de la rejilla (`gridTemplateColumns` clamada a
+  `Math.min(columnas, 4)`) con 1..N complementos a 360/1440 px **no se pudo
+  completar**: el backend no está levantado en este entorno y
+  `GET /api/complementos` responde `{"rows":[]}` en el real (tablas vacías,
+  sin seed). Queda pendiente que un humano la confirme a ojo cuando haya
+  add-ons cargados desde `/admin/complementos`.
+
+**Verificación:** `npm test` **22 archivos / 246 tests** (baseline 21/234 +12
+en `Addons.test.tsx`), exit 0 · `npm run typecheck` exit 0 · `npm run build`
+exit 0 (aviso esperado de chunk >500 kB, sin cambio de tamaño relevante).
+Reejecutada de forma independiente por el reviewer, que además aisló
+`Pricing.test.tsx` (22/22) y `PricesList.test.tsx` (24/24) para confirmar que
+la decisión de no tocar `formatMoneda` no rompió nada.
+
+**Pendiente:**
+
+- **El cableado de add-ons queda completo de punta a punta**: panel (feature
+  37 complementos, feature 38 paquetes) y landing (feature 39). No queda
+  ninguna feature `pending`, `in_progress` ni `blocked` en
+  `feature_list.json`: las 23 features del backlog abierto (17-39) están
+  `done`.
+- **`GET /api/complementos` sigue respondiendo `{"rows":[]}`**: con el
+  fallback heredado de la 35, la sección de add-ons de la landing no se pinta
+  hasta que se carguen complementos desde `/admin/complementos`. Lo mismo
+  sigue pasando con precios (`GET /api/precios` → `{"rows":[]}`). Hay que
+  cargar datos por el panel antes de desplegar.
+- **Verificación visual pendiente y ahora significativa**: la rejilla
+  `repeat(4, 1fr)` de `Addons.tsx` con 1, 2, 3 y 5+ complementos a 360 px y
+  1440 px. Ningún test la mide en píxeles (lo dice el propio acceptance); el
+  reviewer lo dejó anotado en `progress/review_39.md`.
+- **Estado de ramas:** la 37 y la 38 están commiteadas en
+  `feat/37-admin-complementos` (`c6a23b6`, `9cf8991`, `991a1c4`); **la 39
+  está sin commitear** en `feat/39-addons-api`, que cuelga de la anterior
+  (rama apilada: hay que integrar la del CRUD antes que esta). Nada empujado
+  a `origin`.
+- Deuda heredada sin arreglar, sin cambios respecto al cierre anterior:
+  drift documental de `docs/verification.md`/`docs/architecture.md`,
+  `tsconfig.tsbuildinfo` trackeado, el hallazgo del marco vacío del Hero con
+  el backend dormido, el error del listado de usuarios sin `role="alert"`,
+  `getAdminPaquete`/`getAdminComplemento` sin consumidor en la UI, el flake
+  de la suite bajo carga de CPU, y ahora también `formatMoneda(0.2)` →
+  `"$0.2"` en el panel (mismo defecto que motivó esta feature en la landing,
+  sin corregir en `ComplementosList.tsx`/`PricesList.tsx`/`PlanEditDialog.tsx`
+  por estar fuera de su `acceptance`).

@@ -745,9 +745,49 @@ Errores:
 
 ⚠️ **Las tablas están creadas pero VACÍAS y no hay seed**: `GET /api/complementos`
 responde `200 { "rows": [] }` hasta que se carguen complementos **desde el
-panel**. `src/components/sections/Addons.tsx` sigue con su array hardcodeado
-(líneas 20-56): migrarlo a este endpoint, igual que la feature 35 hizo con
-precios, **no está en el backlog** — es fuera de alcance de la 37 y la 38.
+panel**. Con las tablas vacías, la sección de add-ons de la landing (ver abajo)
+no se pinta hasta que se den de alta complementos.
+
+### Qué hace la landing con estos datos (feature 39, 2026-08-09)
+
+`src/components/sections/Addons.tsx` consume este mismo `GET /api/complementos`
+desde la **feature 39**, vía `listComplementos()` + `normalizeApi(…, 'rows')`.
+Es el equivalente exacto de lo que la feature 35 hizo con precios en
+`Pricing.tsx` (§4 quater): el array `addons` hard-codeado que vivía en el
+componente (antes en las líneas 20-56) **se eliminó**, sin conservarse como
+respaldo.
+
+Reglas del contrato que le impone esa sección, ninguna es preferencia de la
+pantalla:
+
+- **El icono y el color de acento NO vienen de la API** — el objeto
+  `complemento` no trae ningún campo de presentación. Se resuelven con una
+  tabla fija en el front (`ESTILO_POR_POSICION`), mapeada por el **índice de
+  la fila** ya ordenada por `orden`, que **cicla** con `%` si llegan más
+  complementos que entradas de la tabla. Deliberadamente no se mapea por
+  `nombre`: un add-on renombrado desde el panel no debe perder ni cambiar su
+  icono.
+- **`precio: null` no es `precio: 0`**: la tarjeta pinta los `paquetes`
+  anidados (siempre presentes, `[]` si no hay, se recorren sin guardas) en vez
+  de una cifra; nunca `$null` ni `$0`. `unidad` viaja aparte y también puede
+  ser `null`.
+- **Los importes conservan dos decimales cuando el valor los tiene.**
+  `formatMoneda()` (el helper compartido de `src/lib/api.ts`, usado tal cual
+  por `Pricing.tsx`, `PricesList.tsx` y `ComplementosList.tsx`) trunca el cero
+  final — `formatMoneda(0.2)` devuelve `"$0.2"`, no `"$0.20"` — lo que sería
+  una regresión visible en la sección más comercial de la landing. Para no
+  romper `src/admin/__tests__/ComplementosList.test.tsx` (feature 37, `done`,
+  que fija literalmente `'$0.2 / crédito'`), `Addons.tsx` no toca el helper
+  compartido: define un formateador **local** a la sección que solo añade dos
+  decimales cuando el importe no es entero.
+- El orden es el del backend (`orden ASC`, y dentro de cada complemento sus
+  `paquetes` también por `orden ASC`): no se reordena ni se recorta en el
+  cliente.
+
+**Fallback, heredado sin cambios de la decisión humana de la feature 35** (§4
+quater): si la API responde `rows: []`, falla o no contesta, la sección **no
+se renderiza**. A diferencia de precios, ocultar `#addons` no deja ningún
+enlace sin destino: ni `Navbar.tsx` ni `Footer.tsx` enlazan a esa ancla.
 
 ## 5. Admin — artículos (`/api/admin/articles`)
 

@@ -512,6 +512,35 @@
       "depends_on": [
         37
       ]
+    },
+    {
+      "id": 39,
+      "name": "La seccion de add-ons de la landing consume /api/complementos",
+      "status": "done",
+      "priority": "media",
+      "description": "Sustituye el array addons hard-codeado de src/components/sections/Addons.tsx:20-56 por el endpoint publico GET /api/complementos, que ya devuelve los paquetes anidados. Es el equivalente a lo que la feature 35 hizo con precios, y el helper listComplementos() ya existe desde la 37: esta feature no anade capa de datos, solo consume la que ya hay. ATENCION: la tabla complementos del backend esta VACIA (GET /api/complementos responde {\"rows\":[]}), asi que con el fallback heredado de la 35 la seccion NO se pintaria hasta cargar add-ons por el panel de /admin/complementos.",
+      "acceptance": [
+        "Addons.tsx consume GET /api/complementos a traves de listComplementos() de src/lib/api.ts, que ya existe desde la feature 37. Cero fetch en el componente y ningun helper nuevo salvo que haga falta de verdad",
+        "FALLBACK HEREDADO DE LA DECISION DE LA 35: si la API devuelve rows vacio, falla o no responde, la seccion de add-ons NO se renderiza. El array addons actual se ELIMINA, no se conserva como valor por defecto ni como respaldo: el criterio sigue siendo no mostrar nunca precios obsoletos como si fueran vigentes. Diferencia verificada respecto a precios: no existe ningun enlace #addons en Navbar.tsx ni Footer.tsx, asi que ocultar la seccion no deja enlaces sin destino",
+        "El estado de carga no provoca salto de layout ni un parpadeo en el que la seccion aparezca y desaparezca, misma regla que la 35 y la 36",
+        "El icono y el color de acento NO vienen de la API (sus campos son id, nombre, descripcion, precio, unidad, orden y paquetes). Se resuelven con una tabla fija en el front mapeada por POSICION —el indice de la fila ya ordenada por orden— que cicla si llegan mas complementos que entradas. Prohibido inventar un campo de icono o color en la API, y prohibido mapear por nombre: renombrar un add-on desde el panel romperia su icono",
+        "precio null NO es 0: un complemento sin precio unitario pinta sus paquetes, nunca $0 ni $null. unidad viaja aparte y puede ser null; el simbolo $ y el formato los pone el front",
+        "Los importes conservan los dos decimales cuando el valor los tiene: hoy la landing muestra $0.20 y formatMoneda(0.2) devuelve $0.2, asi que usarlo tal cual es una REGRESION VISIBLE. Si se ajusta formatMoneda en vez de formatear aparte, los tests de precios (Pricing y PricesList) deben seguir verdes",
+        "Los paquetes anidados se pintan con nombre, descripcion y precio, con el mismo aspecto que hoy tienen los packs hard-codeados. paquetes siempre viene presente ([] si no hay), asi que se recorre sin guardas",
+        "La rejilla, hoy fija en repeat(4, 1fr) a partir de lg, se comporta con 1..N complementos sin huecos raros ni tarjetas desproporcionadas. Es codigo que ningun test mide en pixeles: entra en la verificacion visual",
+        "El id se trata como string y la key de cada tarjeta sale del id, no del nombre (hoy es key={a.name}, que rompe si dos add-ons se llaman igual)",
+        "Tests con vi.spyOn(globalThis,'fetch') y Response reales: render con datos (incluyendo un complemento con precio null y paquetes), con rows vacio, y con fallo de red. Ademas, un test que se ponga ROJO si alguien reintroduce el respaldo hard-codeado, como el que dejo la feature 35",
+        "docs/api-contract.md gana en la seccion de complementos la nota de que hace la landing con estos datos, igual que la 35 hizo en §4 quater y la 36 en §4 ter"
+      ],
+      "files": [
+        "src/components/sections/Addons.tsx",
+        "src/components/sections/__tests__/Addons.test.tsx",
+        "src/lib/api.ts",
+        "docs/api-contract.md"
+      ],
+      "depends_on": [
+        37
+      ]
     }
   ]
 }
